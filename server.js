@@ -139,6 +139,8 @@ async function handleApi(req, res, url) {
     state.appliedVotes = [];
     state.currentReveal = null;
     state.winnerReveal = null;
+    state.votingStatus = "open";
+    state.votingStatusChangedAt = new Date().toISOString();
     saveAndBroadcast(state);
     return sendJson(res, 200, {
       party: getPublicState(state, getHostToken(req, url)),
@@ -168,6 +170,8 @@ async function handleApi(req, res, url) {
     state.appliedVotes = [];
     state.currentReveal = null;
     state.winnerReveal = null;
+    state.votingStatus = "open";
+    state.votingStatusChangedAt = new Date().toISOString();
     saveAndBroadcast(state);
     return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
   }
@@ -179,6 +183,10 @@ async function handleApi(req, res, url) {
     const ranking = Array.isArray(body.ranking) ? body.ranking.map(String) : [];
     const validIds = new Set(state.entries.map((entry) => entry.id));
     const uniqueRanking = [...new Set(ranking)].filter((id) => validIds.has(id)).slice(0, 10);
+
+    if (state.votingStatus === "closed") {
+      return sendJson(res, 403, { error: "Voting is closed." });
+    }
 
     if (!juror) {
       return sendJson(res, 400, { error: "Please add your name." });
@@ -220,6 +228,18 @@ async function handleApi(req, res, url) {
 
     saveAndBroadcast(state);
     return sendJson(res, 200, { ok: true, submissionId: submission.id, ballotToken: nextBallotToken, submission });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/submissions/practice") {
+    const auth = requireHost(req, url, state);
+    if (auth.error) return sendJson(res, auth.status, { error: auth.error });
+
+    const body = await readJson(req);
+    const count = Math.max(1, Math.min(12, Number(body.count || 5)));
+    const result = addPracticeSubmissions(state, count);
+    if (result.error) return sendJson(res, result.status, { error: result.error });
+    saveAndBroadcast(state);
+    return sendJson(res, 200, { ...getPublicState(state, getHostToken(req, url)), addedPracticeBallots: result.added });
   }
 
   if (req.method === "POST" && url.pathname === "/api/submissions/remove") {
@@ -336,6 +356,22 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
   }
 
+  if (req.method === "POST" && url.pathname === "/api/voting/status") {
+    const auth = requireHost(req, url, state);
+    if (auth.error) return sendJson(res, auth.status, { error: auth.error });
+
+    const body = await readJson(req);
+    const status = String(body.status || "");
+    if (!["open", "closed"].includes(status)) {
+      return sendJson(res, 400, { error: "Choose open or closed voting." });
+    }
+
+    state.votingStatus = status;
+    state.votingStatusChangedAt = new Date().toISOString();
+    saveAndBroadcast(state);
+    return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
+  }
+
   if (req.method === "POST" && url.pathname === "/api/reset") {
     const auth = requireHost(req, url, state);
     if (auth.error) return sendJson(res, auth.status, { error: auth.error });
@@ -346,6 +382,8 @@ async function handleApi(req, res, url) {
       state.appliedVotes = [];
       state.currentReveal = null;
       state.winnerReveal = null;
+      state.votingStatus = "open";
+      state.votingStatusChangedAt = new Date().toISOString();
     } else {
       const fresh = createInitialState(state.id, state.name);
       fresh.host = state.host;
@@ -432,6 +470,8 @@ function getPublicState(state, hostToken = "") {
     appliedVotes: state.appliedVotes,
     currentReveal: state.currentReveal,
     winnerReveal,
+    votingStatus: state.votingStatus || "open",
+    votingStatusChangedAt: state.votingStatusChangedAt || null,
     createdAt: state.createdAt,
     host: {
       mode: state.host?.mode || "open",
@@ -472,6 +512,62 @@ function getWinnerReveal(state, scoreboard) {
 function getPointTier(points) {
   if ([8, 10, 12].includes(points)) return `special-${points}`;
   return "standard";
+}
+
+function addPracticeSubmissions(state, count) {
+  if (state.entries.length < 10) {
+    return { status: 400, error: "Add at least 10 entries before creating practice ballots." };
+  }
+
+  const existingNames = new Set(state.submissions.map((submission) => submission.juror.toLowerCase()));
+  const submissions = [];
+
+  for (let index = 0; index < count; index += 1) {
+    const juror = getPracticeJurorName(existingNames);
+    const ballotToken = createToken();
+    const submission = {
+      id: randomUUID(),
+      juror,
+      ranking: shuffleEntries(state.entries).slice(0, 10).map((entry) => entry.id),
+      status: "pending",
+      submittedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ballotTokenHash: hashToken(ballotToken),
+      isPractice: true
+    };
+    submissions.push(submission);
+    existingNames.add(juror.toLowerCase());
+  }
+
+  state.submissions.push(...submissions);
+  state.winnerReveal = null;
+  return { added: submissions.length };
+}
+
+function getPracticeJurorName(existingNames) {
+  for (let index = 1; index < 1000; index += 1) {
+    const name = `Practice Jury ${index}`;
+    if (!existingNames.has(name.toLowerCase())) return name;
+  }
+  return `Practice Jury ${randomBytes(3).toString("hex")}`;
+}
+
+function shuffleEntries(entries) {
+  const shuffled = [...entries];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const nextIndex = randomInt(index + 1);
+    [shuffled[index], shuffled[nextIndex]] = [shuffled[nextIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
+function randomInt(max) {
+  const limit = Math.floor(0x100000000 / max) * max;
+  let value;
+  do {
+    value = randomBytes(4).readUInt32BE(0);
+  } while (value >= limit);
+  return value % max;
 }
 
 function awardNextPoint(state) {
@@ -640,6 +736,8 @@ function loadPartyState(partyId) {
     state.host = state.host || { mode: "open", tokens: [], password: null };
     state.entriesFile = state.entriesFile ?? null;
     state.winnerReveal = state.winnerReveal || null;
+    state.votingStatus = state.votingStatus || "open";
+    state.votingStatusChangedAt = state.votingStatusChangedAt || null;
     return state;
   } catch {
     const state = createInitialState(id, id === DEFAULT_PARTY_ID ? "Local Watch Party" : "Eurovision Party");
@@ -663,6 +761,8 @@ function createInitialState(id = DEFAULT_PARTY_ID, name = "Eurovision Party") {
     appliedVotes: [],
     currentReveal: null,
     winnerReveal: null,
+    votingStatus: "open",
+    votingStatusChangedAt: new Date().toISOString(),
     host: { mode: "open", tokens: [], password: null },
     createdAt: new Date().toISOString()
   };

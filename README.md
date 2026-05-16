@@ -134,6 +134,8 @@ The first choice receives 12 points, then 10, 8, 7, 6, 5, 4, 3, 2, and 1 point.
 
 Guests can reopen the same link on the same device and edit their own ranking until the host starts presenting that ballot. Once the host starts revealing a guest's ballot, that ballot is locked.
 
+If the host has clicked `Stop Voting`, guests will see that voting is closed and cannot submit changes.
+
 ## Host Presenting
 
 Use the host computer or another unlocked host device for presentation.
@@ -141,14 +143,17 @@ Use the host computer or another unlocked host device for presentation.
 1. Open the party link.
 2. Go to `Host`.
 3. Click `Claim Host`, or enter the host password if one has been set.
-4. Optional: click `Hide Panel` on the scoreboard screen for presentation mode.
-5. In the jury queue, click `Start` for the ballot you want to present.
-6. Reveal points with the point buttons:
+4. Click `Start Voting` when guests should begin voting. The scoreboard banner will show `START VOTING NOW`.
+5. For a rehearsal or demo, click `Add Practice Ballots` to create five random test juries.
+6. Click `Stop Voting` when submissions should close. The scoreboard banner will show `STOP VOTING NOW`, and guests can no longer submit or edit ballots.
+7. Optional: click `Hide Panel` on the scoreboard screen for presentation mode.
+8. In the jury queue, click `Start` for the ballot you want to present.
+9. Reveal points with the point buttons:
    - `Reveal 1` reveals the next point value.
    - `Reveal 7`, `Reveal 8`, `Reveal 10`, and `Reveal 12` can reveal through those point tiers.
-7. When a jury is complete, click `Clear Reveal`.
-8. Repeat for each jury.
-9. After every submitted jury is applied, click `Show Winner`.
+10. When a jury is complete, click `Clear Reveal`.
+11. Repeat for each jury.
+12. After every submitted jury is applied, click `Show Winner`.
 
 The scoreboard updates live for everyone connected to the party. Host-only actions are disabled until host access is unlocked.
 

@@ -4,6 +4,7 @@ const state = {
   scoreboard: [],
   currentReveal: null,
   winnerReveal: null,
+  votingStatus: "open",
   pointsByRank: [],
   host: { isHost: false }
 };
@@ -33,6 +34,9 @@ const els = {
   revealButtons: [...document.querySelectorAll("[data-reveal-to]")],
   finishReveal: document.querySelector("#finish-reveal"),
   showWinner: document.querySelector("#show-winner"),
+  openVoting: document.querySelector("#open-voting"),
+  closeVoting: document.querySelector("#close-voting"),
+  addPracticeBallots: document.querySelector("#add-practice-ballots"),
   resetVotes: document.querySelector("#reset-votes"),
   backgroundButtons: [...document.querySelectorAll("[data-background-mode]")],
   hostStatus: document.querySelector("#host-status"),
@@ -127,7 +131,8 @@ function renderRankingForm() {
   const ownBallot = getOwnBallot();
   const previousValues = ownBallot?.ranking || (session.activeSubmissionId ? [] : getSelectedRanking());
   const points = state.pointsByRank.length ? state.pointsByRank : [12, 10, 8, 7, 6, 5, 4, 3, 2, 1];
-  const isLocked = Boolean(ownBallot && ownBallot.status !== "pending");
+  const isVotingClosed = state.votingStatus === "closed";
+  const isLocked = Boolean(ownBallot && ownBallot.status !== "pending") || isVotingClosed;
 
   if (document.activeElement !== els.jurorName) {
     els.jurorName.value = ownBallot?.juror || "";
@@ -154,7 +159,9 @@ function renderRankingForm() {
   els.jurorName.disabled = isLocked;
   els.submitRanking.disabled = isLocked;
   els.submitRanking.textContent = ownBallot ? "Update Ranking" : "Send Ranking";
-  if (isLocked) {
+  if (isVotingClosed) {
+    setMessage(els.voteMessage, "Voting is closed.");
+  } else if (isLocked) {
     setMessage(els.voteMessage, "Presentation has started for your ballot, so it is locked.");
   }
   disableDuplicateOptions();
@@ -189,6 +196,9 @@ function renderHost() {
   });
   els.finishReveal.disabled = !isHost || !state.currentReveal;
   els.showWinner.disabled = !isHost || !allSubmittedJuriesApplied || !state.appliedVotes.length;
+  els.openVoting.disabled = !isHost || state.votingStatus === "open";
+  els.closeVoting.disabled = !isHost || state.votingStatus === "closed";
+  els.addPracticeBallots.disabled = !isHost || state.entries.length < 10;
   els.resetVotes.disabled = !isHost;
   els.setHostPassword.disabled = !isHost;
 
@@ -251,6 +261,7 @@ function renderPartySettings() {
 
 function renderSpotlight(animation = "") {
   els.spotlight.classList.toggle("has-winner", Boolean(state.winnerReveal));
+  els.spotlight.classList.toggle("has-voting-status", !state.winnerReveal && !state.currentReveal && Boolean(state.votingStatus));
 
   if (state.winnerReveal) {
     const winners = state.winnerReveal.entries || [];
@@ -260,6 +271,18 @@ function renderSpotlight(animation = "") {
       <span class="spotlight-label">${isTie ? "Final result" : "Winner"}</span>
       <strong>${isTie ? `Tie: ${winners.map((entry) => `${flagMarkup(entry)}${escapeHtml(entry.countryName || entry.country || entry.name)}`).join(" & ")}` : `${flagMarkup(winner)}${escapeHtml(winner?.countryName || winner?.country || winner?.name || "Winner")}`}</strong>
       <span>${isTie ? `${winners.length} entries finish` : escapeHtml(entryDetail(winner))} with ${state.winnerReveal.total} points.</span>
+    `;
+    animateSpotlight(animation);
+    hasRenderedSpotlight = true;
+    return;
+  }
+
+  if (!state.currentReveal && state.votingStatus) {
+    const isClosed = state.votingStatus === "closed";
+    els.spotlight.innerHTML = `
+      <span class="spotlight-label">Voting status</span>
+      <strong>${isClosed ? "STOP VOTING NOW" : "START VOTING NOW"}</strong>
+      <span>${isClosed ? "The host has closed ballot submissions." : "Guests can submit or update their rankings."}</span>
     `;
     animateSpotlight(animation);
     hasRenderedSpotlight = true;
@@ -320,6 +343,14 @@ function getSpotlightSnapshot(nextState) {
     };
   }
 
+  if (!nextState.currentReveal && nextState.votingStatus) {
+    return {
+      type: "voting",
+      status: nextState.votingStatus,
+      changedAt: nextState.votingStatusChangedAt || ""
+    };
+  }
+
   const reveal = nextState.currentReveal;
   if (!reveal) {
     return null;
@@ -334,6 +365,7 @@ function getSpotlightSnapshot(nextState) {
 
 function getSpotlightAnimation(previousSpotlight, nextSpotlight) {
   if (nextSpotlight?.type === "winner" && previousSpotlight?.type !== "winner") return "is-showing-winner";
+  if (nextSpotlight?.type === "voting" && (previousSpotlight?.type !== "voting" || previousSpotlight.status !== nextSpotlight.status || previousSpotlight.changedAt !== nextSpotlight.changedAt)) return "is-showing-voting-status";
   if (nextSpotlight?.type === "reveal" && previousSpotlight?.submissionId !== nextSpotlight.submissionId) return "is-starting-reveal";
   if (previousSpotlight?.submissionId === nextSpotlight?.submissionId && !previousSpotlight?.finished && nextSpotlight?.finished) return "is-completing-reveal";
   if (previousSpotlight && !nextSpotlight) return "is-clearing-reveal";
@@ -341,7 +373,7 @@ function getSpotlightAnimation(previousSpotlight, nextSpotlight) {
 }
 
 function animateSpotlight(animation) {
-  els.spotlight.classList.remove("is-starting-reveal", "is-completing-reveal", "is-clearing-reveal", "is-showing-winner");
+  els.spotlight.classList.remove("is-starting-reveal", "is-completing-reveal", "is-clearing-reveal", "is-showing-winner", "is-showing-voting-status");
   if (!animation) return;
   void els.spotlight.offsetWidth;
   els.spotlight.classList.add(animation);
@@ -392,6 +424,9 @@ function bindActions() {
   els.revealNext.addEventListener("click", () => revealNextPoint());
   els.finishReveal.addEventListener("click", () => api("/api/reveal/finish", { method: "POST" }));
   els.showWinner.addEventListener("click", () => showWinner());
+  els.openVoting.addEventListener("click", () => setVotingStatus("open"));
+  els.closeVoting.addEventListener("click", () => setVotingStatus("closed"));
+  els.addPracticeBallots.addEventListener("click", () => addPracticeBallots());
   els.claimHost.addEventListener("click", () => claimHost());
   els.createParty.addEventListener("click", () => createParty());
   els.joinParty.addEventListener("click", () => switchParty(els.partyIdInput.value));
@@ -490,6 +525,14 @@ async function revealNextPoint() {
 
 async function showWinner() {
   await api("/api/winner/show", { method: "POST" });
+}
+
+async function setVotingStatus(status) {
+  await api("/api/voting/status", { method: "POST", body: { status } });
+}
+
+async function addPracticeBallots() {
+  await api("/api/submissions/practice", { method: "POST", body: { count: 5 } });
 }
 
 async function removeBallot(submissionId) {
