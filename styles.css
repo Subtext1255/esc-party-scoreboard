@@ -213,6 +213,13 @@ h2 {
   white-space: nowrap;
 }
 
+.spotlight-status {
+  color: var(--gold);
+  font-size: 0.86rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
 .spotlight.has-winner strong {
   flex-wrap: wrap;
   gap: 6px;

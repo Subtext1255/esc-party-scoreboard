@@ -89,7 +89,7 @@ async function handleApi(req, res, url) {
 
   if (req.method === "POST" && url.pathname === "/api/host/claim") {
     const body = await readJson(req);
-    const result = claimHost(state, String(body.password || ""));
+    const result = claimHost(state, String(body.password || ""), getHostToken(req, url));
     if (result.error) {
       return sendJson(res, result.status, { error: result.error });
     }
@@ -284,16 +284,33 @@ async function handleApi(req, res, url) {
       return sendJson(res, 400, { error: "That jury has already been fully applied." });
     }
 
-    state.currentReveal = {
-      submissionId: submission.id,
-      juror: submission.juror,
-      nextIndex: 9,
-      lastAward: null,
-      lastAwards: [],
-      highlightedAwards: []
-    };
+    startSubmissionReveal(state, submission);
     state.winnerReveal = null;
-    submission.status = "revealing";
+    saveAndBroadcast(state);
+    return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/reveal/next-jury") {
+    const auth = requireHost(req, url, state);
+    if (auth.error) return sendJson(res, auth.status, { error: auth.error });
+
+    if (state.currentReveal && !state.currentReveal.finished) {
+      return sendJson(res, 400, { error: "Finish the current jury before starting the next one." });
+    }
+
+    if (state.currentReveal?.finished) {
+      const currentSubmission = state.submissions.find((item) => item.id === state.currentReveal.submissionId);
+      if (currentSubmission) currentSubmission.status = "applied";
+      state.currentReveal = null;
+    }
+
+    const nextSubmission = state.submissions.find((submission) => submission.status === "pending");
+    if (!nextSubmission) {
+      return sendJson(res, 400, { error: "There are no pending juries to reveal." });
+    }
+
+    startSubmissionReveal(state, nextSubmission);
+    state.winnerReveal = null;
     saveAndBroadcast(state);
     return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
   }
@@ -544,6 +561,18 @@ function addPracticeSubmissions(state, count) {
   return { added: submissions.length };
 }
 
+function startSubmissionReveal(state, submission) {
+  state.currentReveal = {
+    submissionId: submission.id,
+    juror: submission.juror,
+    nextIndex: 9,
+    lastAward: null,
+    lastAwards: [],
+    highlightedAwards: []
+  };
+  submission.status = "revealing";
+}
+
 function getPracticeJurorName(existingNames) {
   for (let index = 1; index < 1000; index += 1) {
     const name = `Practice Jury ${index}`;
@@ -654,10 +683,19 @@ function applyAwards(state, submission, rankIndexes, options = {}) {
   }
 }
 
-function claimHost(state, password) {
+function claimHost(state, password, currentToken = "") {
   const host = ensureHost(state);
-  if (host.mode === "password" && !verifyPassword(password, host.password)) {
-    return { status: 403, error: "That host password did not match." };
+
+  if (isHostToken(state, currentToken)) {
+    return { hostToken: currentToken };
+  }
+
+  if (host.mode === "password") {
+    if (!verifyPassword(password, host.password)) {
+      return { status: 403, error: "That host password did not match." };
+    }
+  } else if (host.mode !== "open" || host.tokens.length) {
+    return { status: 403, error: "Host access is already claimed. Ask the host to set a password if you need to unlock another device." };
   }
 
   const hostToken = createToken();

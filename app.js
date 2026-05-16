@@ -32,6 +32,7 @@ const els = {
   juryQueue: document.querySelector("#jury-queue"),
   revealNext: document.querySelector("#reveal-next"),
   revealButtons: [...document.querySelectorAll("[data-reveal-to]")],
+  nextJury: document.querySelector("#next-jury"),
   finishReveal: document.querySelector("#finish-reveal"),
   showWinner: document.querySelector("#show-winner"),
   openVoting: document.querySelector("#open-voting"),
@@ -187,6 +188,7 @@ function renderDeviceBallots() {
 function renderHost() {
   const isHost = Boolean(state.host?.isHost);
   const nextPoint = getNextRevealPoint();
+  const hasPendingJury = state.submissions.some((submission) => submission.status === "pending");
   const allSubmittedJuriesApplied = state.submissions.length > 0 && state.submissions.every((submission) => submission.status === "applied");
   els.revealNext.textContent = nextPoint ? `Reveal ${nextPoint}` : "Reveal 1";
   els.revealNext.disabled = !isHost || !state.currentReveal || state.currentReveal.finished || !nextPoint;
@@ -194,6 +196,7 @@ function renderHost() {
     const targetPoints = Number(button.dataset.revealTo);
     button.disabled = !isHost || !state.currentReveal || state.currentReveal.finished || !nextPoint || targetPoints < nextPoint;
   });
+  els.nextJury.disabled = !isHost || !hasPendingJury || Boolean(state.currentReveal && !state.currentReveal.finished);
   els.finishReveal.disabled = !isHost || !state.currentReveal;
   els.showWinner.disabled = !isHost || !allSubmittedJuriesApplied || !state.appliedVotes.length;
   els.openVoting.disabled = !isHost || state.votingStatus === "open";
@@ -262,6 +265,10 @@ function renderPartySettings() {
 function renderSpotlight(animation = "") {
   els.spotlight.classList.toggle("has-winner", Boolean(state.winnerReveal));
   els.spotlight.classList.toggle("has-voting-status", !state.winnerReveal && !state.currentReveal && Boolean(state.votingStatus));
+  const juryProgress = getJuryProgress();
+  const juryProgressLabel = juryProgress
+    ? `Jury ${juryProgress.current} of ${juryProgress.total} now voting`
+    : "Now revealing";
 
   if (state.winnerReveal) {
     const winners = state.winnerReveal.entries || [];
@@ -280,7 +287,7 @@ function renderSpotlight(animation = "") {
   if (!state.currentReveal && state.votingStatus) {
     const isClosed = state.votingStatus === "closed";
     els.spotlight.innerHTML = `
-      <span class="spotlight-label">Voting status</span>
+      <span class="spotlight-label">${juryProgress ? `Jury ${juryProgress.current} of ${juryProgress.total}` : "Voting status"}</span>
       <strong>${isClosed ? "STOP VOTING NOW" : "START VOTING NOW"}</strong>
       <span>${isClosed ? "The host has closed ballot submissions." : "Guests can submit or update their rankings."}</span>
     `;
@@ -308,8 +315,10 @@ function renderSpotlight(animation = "") {
 
     if (lastAwards.length > 1) {
       els.spotlight.innerHTML = `
+        <span class="spotlight-label">${juryProgressLabel}</span>
         <strong>${escapeHtml(reveal.juror)} awards 1-${highestAward.points} points to ${lastAwards.length} entries</strong>
-        <span>${reveal.finished ? "Jury complete." : "Next award is ready."}</span>
+        <span>${reveal.finished ? "All points from this jury are on the board." : "Next award is ready."}</span>
+        ${reveal.finished ? `<span class="spotlight-status">Jury complete.</span>` : ""}
       `;
       animateSpotlight(animation);
       hasRenderedSpotlight = true;
@@ -317,8 +326,10 @@ function renderSpotlight(animation = "") {
     }
 
       els.spotlight.innerHTML = `
+      <span class="spotlight-label">${juryProgressLabel}</span>
       <strong>${escapeHtml(reveal.juror)} awards ${highestAward.points} points to ${flagMarkup(entry)}${escapeHtml(entry?.countryName || entry?.country || "Unknown entry")}</strong>
-      <span>${escapeHtml(entryDetail(entry))}${reveal.finished ? " Jury complete." : ""}</span>
+      <span>${escapeHtml(entryDetail(entry))}</span>
+      ${reveal.finished ? `<span class="spotlight-status">Jury complete.</span>` : ""}
     `;
     animateSpotlight(animation);
     hasRenderedSpotlight = true;
@@ -326,7 +337,7 @@ function renderSpotlight(animation = "") {
   }
 
   els.spotlight.innerHTML = `
-    <span class="spotlight-label">Now revealing</span>
+    <span class="spotlight-label">${juryProgressLabel}</span>
     <strong>${escapeHtml(reveal.juror)}</strong>
     <span>Start with 1 point and build to 12.</span>
   `;
@@ -360,6 +371,25 @@ function getSpotlightSnapshot(nextState) {
     type: "reveal",
     submissionId: reveal.submissionId,
     finished: Boolean(reveal.finished)
+  };
+}
+
+function getJuryProgress() {
+  const total = state.submissions.length;
+  if (!total) return null;
+
+  if (state.currentReveal?.submissionId) {
+    const index = state.submissions.findIndex((submission) => submission.id === state.currentReveal.submissionId);
+    return {
+      current: index >= 0 ? index + 1 : Math.min(total, state.submissions.filter((submission) => submission.status === "applied").length + 1),
+      total
+    };
+  }
+
+  const completed = state.submissions.filter((submission) => submission.status === "applied").length;
+  return {
+    current: Math.min(total, completed + 1),
+    total
   };
 }
 
@@ -422,6 +452,7 @@ function bindActions() {
     button.addEventListener("click", () => revealThrough(Number(button.dataset.revealTo)));
   });
   els.revealNext.addEventListener("click", () => revealNextPoint());
+  els.nextJury.addEventListener("click", () => startNextJury());
   els.finishReveal.addEventListener("click", () => api("/api/reveal/finish", { method: "POST" }));
   els.showWinner.addEventListener("click", () => showWinner());
   els.openVoting.addEventListener("click", () => setVotingStatus("open"));
@@ -457,16 +488,24 @@ async function startReveal(submissionId) {
   await api("/api/reveal/start", { method: "POST", body: { submissionId } });
 }
 
+async function startNextJury() {
+  await api("/api/reveal/next-jury", { method: "POST" });
+}
+
 async function claimHost() {
-  const data = await api("/api/host/claim", {
-    method: "POST",
-    body: { password: els.hostPassword.value }
-  });
-  saveHostToken(session.partyId, data.hostToken);
-  session.hostToken = data.hostToken;
-  els.hostPassword.value = "";
-  connectEvents();
-  updateState(data.party);
+  try {
+    const data = await api("/api/host/claim", {
+      method: "POST",
+      body: { password: els.hostPassword.value }
+    });
+    saveHostToken(session.partyId, data.hostToken);
+    session.hostToken = data.hostToken;
+    els.hostPassword.value = "";
+    connectEvents();
+    updateState(data.party);
+  } catch (error) {
+    els.hostStatusDetail.textContent = error.message;
+  }
 }
 
 async function createParty() {
@@ -532,7 +571,12 @@ async function setVotingStatus(status) {
 }
 
 async function addPracticeBallots() {
-  await api("/api/submissions/practice", { method: "POST", body: { count: 5 } });
+  try {
+    await api("/api/submissions/practice", { method: "POST", body: { count: 5 } });
+  } catch (error) {
+    els.hostStatusDetail.textContent = error.message;
+    alert(`Could not add practice ballots: ${error.message}`);
+  }
 }
 
 async function removeBallot(submissionId) {
