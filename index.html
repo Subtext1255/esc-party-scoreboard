@@ -7,6 +7,47 @@
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
+    <section class="landing-page is-hidden" id="landing-page" aria-labelledby="landing-title">
+      <div class="landing-card">
+        <div class="landing-heading">
+          <p class="eyebrow">Eurovision party</p>
+          <h1 id="landing-title">Create or join a scoreboard</h1>
+        </div>
+
+        <div class="landing-sections">
+          <section class="landing-section" aria-labelledby="landing-create-title">
+            <h2 id="landing-create-title">Create Party</h2>
+            <label>
+              Party name
+              <input id="landing-create-name" autocomplete="off" placeholder="Eurovision Party">
+            </label>
+            <label>
+              Join password
+              <input id="landing-create-password" type="password" autocomplete="new-password" placeholder="Optional">
+            </label>
+            <button class="primary-action" type="button" id="landing-create-party">Create Party</button>
+          </section>
+
+          <div class="landing-divider" aria-hidden="true">or</div>
+
+          <section class="landing-section" aria-labelledby="landing-join-title">
+            <h2 id="landing-join-title">Join Party</h2>
+            <label>
+              Party code
+              <input class="code-input" id="landing-join-code" autocomplete="off" inputmode="text" maxlength="6" placeholder="ABC234">
+            </label>
+            <label class="is-hidden" id="landing-join-password-group">
+              Join password
+              <input id="landing-join-password" type="password" autocomplete="current-password" placeholder="Password">
+            </label>
+            <button class="primary-action" type="button" id="landing-join-party">Join Party</button>
+          </section>
+        </div>
+
+        <p class="form-note" id="landing-error" aria-live="polite"></p>
+      </div>
+    </section>
+
     <main class="app-shell">
       <section class="score-stage" aria-labelledby="scoreboard-title">
         <div class="stage-topline">

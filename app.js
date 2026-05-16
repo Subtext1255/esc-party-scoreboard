@@ -12,6 +12,7 @@ const state = {
 const session = {
   partyId: getInitialPartyId(),
   hostToken: "",
+  joinToken: "",
   ballotToken: "",
   activeSubmissionId: "",
   networkUrls: []
@@ -55,24 +56,39 @@ const els = {
   entryEditorLink: document.querySelector("#entry-editor-link"),
   newHostPassword: document.querySelector("#new-host-password"),
   setHostPassword: document.querySelector("#set-host-password"),
-  presentationToggle: document.querySelector("#presentation-toggle")
+  presentationToggle: document.querySelector("#presentation-toggle"),
+  landingPage: document.querySelector("#landing-page"),
+  landingError: document.querySelector("#landing-error"),
+  landingJoinCode: document.querySelector("#landing-join-code"),
+  landingJoinPassword: document.querySelector("#landing-join-password"),
+  landingJoinPasswordGroup: document.querySelector("#landing-join-password-group"),
+  landingCreateName: document.querySelector("#landing-create-name"),
+  landingCreatePassword: document.querySelector("#landing-create-password"),
+  landingCreateParty: document.querySelector("#landing-create-party"),
+  landingJoinParty: document.querySelector("#landing-join-party")
 };
 
 let events;
 let hasRenderedSpotlight = false;
-session.hostToken = getStoredHostToken(session.partyId);
+const CODE_PATTERN = /^[a-hj-km-np-z2-9]{6}$/;
+session.hostToken = session.partyId ? getStoredHostToken(session.partyId) : "";
+session.joinToken = session.partyId ? getStoredJoinToken(session.partyId) : "";
 loadActiveDeviceBallot();
 applyBackgroundMode(localStorage.getItem("backgroundMode") || "image");
 applyPresentationMode(localStorage.getItem("presentationMode") === "true");
-connectEvents();
 bindTabs();
 bindActions();
-loadInitialState();
-loadNetworkInfo();
+if (session.partyId) {
+  connectEvents();
+  loadInitialState();
+  loadNetworkInfo();
+} else {
+  renderLanding();
+}
 
 function connectEvents() {
   if (events) events.close();
-  events = new EventSource(apiUrl("/api/events", { hostToken: session.hostToken }));
+  events = new EventSource(apiUrl("/api/events", { hostToken: session.hostToken, joinToken: session.joinToken }));
 
   events.onopen = () => {
     els.connection.textContent = "Live";
@@ -90,13 +106,29 @@ function connectEvents() {
 }
 
 async function loadInitialState() {
-  const data = await api("/api/state");
-  updateState(data);
+  if (!session.partyId) {
+    renderLanding();
+    return;
+  }
+  try {
+    const data = await api("/api/state");
+    updateState(data);
+    hideLanding();
+  } catch (error) {
+    if (error.code === "join_password_required") {
+      showJoinPasswordPrompt(error.partyName);
+    } else {
+      session.partyId = null;
+      localStorage.removeItem("partyId");
+      renderLanding(error.message);
+    }
+  }
 }
 
 function updateState(nextState) {
   const previousSpotlight = getSpotlightSnapshot(state);
   Object.assign(state, nextState);
+  hideLanding();
   const spotlightAnimation = hasRenderedSpotlight ? getSpotlightAnimation(previousSpotlight, getSpotlightSnapshot(state)) : "";
   renderScoreboard();
   renderRankingForm();
@@ -248,7 +280,7 @@ function renderHost() {
 
 function renderPartySettings() {
   const partyId = state.id || session.partyId;
-  els.partyIdInput.value = partyId;
+  els.partyIdInput.value = CODE_PATTERN.test(partyId) ? partyId.toUpperCase() : partyId;
   els.partyName.value = state.name || "";
   const inviteLink = getBestInviteLink(partyId);
   els.inviteLink.value = inviteLink;
@@ -461,6 +493,43 @@ function bindActions() {
   els.claimHost.addEventListener("click", () => claimHost());
   els.createParty.addEventListener("click", () => createParty());
   els.joinParty.addEventListener("click", () => switchParty(els.partyIdInput.value));
+  if (els.landingCreateParty) {
+    els.landingCreateParty.addEventListener("click", async () => {
+      try {
+        const password = els.landingCreatePassword?.value || "";
+        const name = els.landingCreateName?.value || "Eurovision Party";
+        await createParty(password, name);
+      } catch (error) {
+        renderLanding(error.message);
+      }
+    });
+  }
+  if (els.landingJoinParty) {
+    els.landingJoinParty.addEventListener("click", async () => {
+      try {
+        await joinParty(
+          els.landingJoinCode?.value || "",
+          els.landingJoinPassword?.value || ""
+        );
+      } catch (error) {
+        renderLanding(error.message, { keepJoinPassword: CODE_PATTERN.test(normalizePartyId(els.landingJoinCode?.value || "")) });
+      }
+    });
+  }
+  if (els.landingJoinCode) {
+    els.landingJoinCode.addEventListener("input", () => {
+      els.landingJoinCode.value = els.landingJoinCode.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+      setLandingMessage("");
+    });
+    els.landingJoinCode.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") els.landingJoinParty?.click();
+    });
+  }
+  if (els.landingJoinPassword) {
+    els.landingJoinPassword.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") els.landingJoinParty?.click();
+    });
+  }
   els.setHostPassword.addEventListener("click", () => setHostPassword());
   els.deviceBallots.addEventListener("change", () => selectDeviceBallot(els.deviceBallots.value));
   els.newBallot.addEventListener("click", () => selectDeviceBallot("", { clearForm: true }));
@@ -508,14 +577,17 @@ async function claimHost() {
   }
 }
 
-async function createParty() {
+async function createParty(joinPassword = "", name = els.partyName.value || "Eurovision Party") {
+  const body = { name };
+  if (joinPassword) body.joinPassword = joinPassword;
+
   const data = await api("/api/parties", {
     method: "POST",
-    body: { name: els.partyName.value || "Eurovision Party" },
+    body,
     skipParty: true
   });
 
-  switchParty(data.party.id, data.hostToken, data.party);
+  switchParty(data.party.id, data.hostToken, data.joinToken, data.party);
 }
 
 async function setHostPassword() {
@@ -526,11 +598,34 @@ async function setHostPassword() {
   els.newHostPassword.value = "";
 }
 
-function switchParty(partyId, hostToken = getStoredHostToken(partyId), knownState = null) {
+async function joinParty(code, password = "") {
+  const normalized = normalizePartyId(code);
+  if (!CODE_PATTERN.test(normalized)) {
+    throw new Error("Party codes are 6 letters and numbers.");
+  }
+
+  const previousPartyId = session.partyId;
+  session.partyId = normalized;
+
+  try {
+    const data = await api("/api/parties/join", {
+      method: "POST",
+      body: password ? { password } : {}
+    });
+    switchParty(normalized, "", data.joinToken, data.party);
+  } catch (error) {
+    session.partyId = previousPartyId;
+    throw error;
+  }
+}
+
+function switchParty(partyId, hostToken = getStoredHostToken(partyId), joinToken = getStoredJoinToken(partyId), knownState = null) {
   session.partyId = normalizePartyId(partyId);
   session.hostToken = hostToken || "";
+  session.joinToken = joinToken || "";
   loadActiveDeviceBallot();
   saveHostToken(session.partyId, session.hostToken);
+  saveJoinToken(session.partyId, session.joinToken);
   localStorage.setItem("partyId", session.partyId);
   const url = new URL(window.location.href);
   url.searchParams.set("party", session.partyId);
@@ -612,14 +707,20 @@ async function api(url, options = {}) {
     headers: {
       ...(options.body ? { "Content-Type": "application/json" } : {}),
       ...(session.hostToken ? { "X-Host-Token": session.hostToken } : {}),
-      "X-Party-Id": session.partyId
+      ...(session.joinToken ? { "X-Join-Token": session.joinToken } : {}),
+      "X-Party-Id": session.partyId || ""
     },
     body: options.body ? JSON.stringify(options.body) : undefined
   });
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || "Request failed.");
+    const error = new Error(data.error || "Request failed.");
+    if (data.error === "join_password_required") {
+      error.code = "join_password_required";
+      error.partyName = data.partyName;
+    }
+    throw error;
   }
 
   return data;
@@ -636,17 +737,25 @@ function apiUrl(path, extraParams = {}, skipParty = false) {
 
 function getInitialPartyId() {
   const fromUrl = new URLSearchParams(window.location.search).get("party");
-  const partyId = normalizePartyId(fromUrl || localStorage.getItem("partyId") || "local");
-  localStorage.setItem("partyId", partyId);
-  return partyId;
+  if (fromUrl) {
+    const normalized = normalizePartyId(fromUrl);
+    localStorage.setItem("partyId", normalized);
+    return normalized;
+  }
+  const stored = localStorage.getItem("partyId");
+  if (stored) return normalizePartyId(stored);
+  return null;
 }
 
 function normalizePartyId(value) {
-  return String(value || "local")
-    .toLowerCase()
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "local";
+  if (CODE_PATTERN.test(raw)) return raw;
+  const normalized = raw
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/^-|-$/g, "")
-    .slice(0, 48) || "local";
+    .slice(0, 48);
+  return normalized || "local";
 }
 
 function getStoredHostToken(partyId) {
@@ -655,6 +764,15 @@ function getStoredHostToken(partyId) {
 
 function saveHostToken(partyId, token) {
   if (token) localStorage.setItem(`hostToken:${normalizePartyId(partyId)}`, token);
+}
+
+function getStoredJoinToken(partyId) {
+  if (!partyId) return "";
+  return localStorage.getItem(`joinToken:${normalizePartyId(partyId)}`) || "";
+}
+
+function saveJoinToken(partyId, token) {
+  if (token && partyId) localStorage.setItem(`joinToken:${normalizePartyId(partyId)}`, token);
 }
 
 function getBestInviteLink(partyId) {
@@ -1014,6 +1132,35 @@ function clearRankingForm(options = {}) {
   });
   disableDuplicateOptions();
   setMessage(els.voteMessage, "");
+}
+
+function renderLanding(errorMessage = "", options = {}) {
+  if (els.landingPage) els.landingPage.classList.remove("is-hidden");
+  document.querySelector(".app-shell")?.classList.add("is-hidden");
+  if (!options.keepJoinPassword) {
+    els.landingJoinPasswordGroup?.classList.add("is-hidden");
+  } else {
+    els.landingJoinPasswordGroup?.classList.remove("is-hidden");
+  }
+  setLandingMessage(errorMessage, Boolean(errorMessage));
+}
+
+function hideLanding() {
+  if (els.landingPage) els.landingPage.classList.add("is-hidden");
+  document.querySelector(".app-shell")?.classList.remove("is-hidden");
+}
+
+function showJoinPasswordPrompt(partyName) {
+  renderLanding("", { keepJoinPassword: true });
+  if (els.landingJoinCode) els.landingJoinCode.value = session.partyId ? session.partyId.toUpperCase() : "";
+  if (els.landingJoinPasswordGroup) els.landingJoinPasswordGroup.classList.remove("is-hidden");
+  setLandingMessage(`"${partyName}" requires a join password.`, true);
+}
+
+function setLandingMessage(message, isError = false) {
+  if (!els.landingError) return;
+  els.landingError.textContent = message;
+  els.landingError.classList.toggle("is-error", isError);
 }
 
 function loadActiveDeviceBallot() {

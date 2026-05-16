@@ -84,6 +84,81 @@ body.is-presentation .control-deck {
   display: none;
 }
 
+.is-hidden {
+  display: none !important;
+}
+
+.landing-page {
+  display: grid;
+  min-height: 100vh;
+  padding: 24px;
+  place-items: center;
+}
+
+.landing-card {
+  width: min(100%, 900px);
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.landing-heading {
+  margin-bottom: 24px;
+}
+
+.landing-heading h1 {
+  max-width: 760px;
+  font-size: clamp(2rem, 4vw, 3.7rem);
+}
+
+.landing-sections {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 22px;
+}
+
+.landing-section {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.landing-section h2 {
+  margin-bottom: 0;
+}
+
+.landing-divider {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  color: var(--gold);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.landing-divider::before,
+.landing-divider::after {
+  content: "";
+  width: 1px;
+  min-height: 46px;
+  background: var(--line);
+}
+
+.code-input {
+  min-height: 56px;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
 .score-stage,
 .control-deck {
   border: 1px solid var(--line);
@@ -1129,6 +1204,21 @@ textarea:focus {
 }
 
 @media (max-width: 980px) {
+  .landing-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-divider {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .landing-divider::before,
+  .landing-divider::after {
+    width: 100%;
+    min-height: 1px;
+  }
+
   .app-shell {
     grid-template-columns: 1fr;
   }
@@ -1168,6 +1258,14 @@ textarea:focus {
 }
 
 @media (max-width: 620px) {
+  .landing-page {
+    padding: 12px;
+  }
+
+  .landing-card {
+    padding: 18px;
+  }
+
   .app-shell {
     padding: 12px;
   }

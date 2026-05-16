@@ -6,7 +6,8 @@ const state = {
 
 const session = {
   partyId: getInitialPartyId(),
-  hostToken: ""
+  hostToken: "",
+  joinToken: ""
 };
 
 const els = {
@@ -28,7 +29,9 @@ const els = {
   entriesMessage: document.querySelector("#entries-message")
 };
 
+const CODE_PATTERN = /^[a-hj-km-np-z2-9]{6}$/;
 session.hostToken = getStoredHostToken(session.partyId);
+session.joinToken = getStoredJoinToken(session.partyId);
 bindActions();
 loadPage();
 
@@ -216,6 +219,7 @@ async function saveEntries({ saveList }) {
 function switchParty(partyId) {
   session.partyId = normalizePartyId(partyId);
   session.hostToken = getStoredHostToken(session.partyId);
+  session.joinToken = getStoredJoinToken(session.partyId);
   localStorage.setItem("partyId", session.partyId);
   const url = new URL(window.location.href);
   url.searchParams.set("party", session.partyId);
@@ -229,6 +233,7 @@ async function api(url, options = {}) {
     headers: {
       ...(options.body ? { "Content-Type": "application/json" } : {}),
       ...(session.hostToken ? { "X-Host-Token": session.hostToken } : {}),
+      ...(session.joinToken ? { "X-Join-Token": session.joinToken } : {}),
       "X-Party-Id": session.partyId
     },
     body: options.body ? JSON.stringify(options.body) : undefined
@@ -236,7 +241,12 @@ async function api(url, options = {}) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || "Request failed.");
+    if (data.error === "join_password_required") {
+      window.location.href = `/?party=${encodeURIComponent(data.partyId || session.partyId)}`;
+      return new Promise(() => {});
+    }
+    const error = new Error(data.error || "Request failed.");
+    throw error;
   }
 
   return data;
@@ -249,7 +259,7 @@ function apiUrl(path) {
 }
 
 function setPartyUi() {
-  els.partyIdInput.value = session.partyId;
+  els.partyIdInput.value = CODE_PATTERN.test(session.partyId) ? session.partyId.toUpperCase() : session.partyId;
   els.scoreboardLink.href = `/?party=${encodeURIComponent(session.partyId)}`;
 }
 
@@ -261,7 +271,9 @@ function getInitialPartyId() {
 }
 
 function normalizePartyId(value) {
-  return String(value || "local")
+  const raw = String(value || "local").trim().toLowerCase();
+  if (CODE_PATTERN.test(raw)) return raw;
+  return raw
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/^-|-$/g, "")
@@ -274,6 +286,11 @@ function getStoredHostToken(partyId) {
 
 function saveHostToken(partyId, token) {
   if (token) localStorage.setItem(`hostToken:${normalizePartyId(partyId)}`, token);
+}
+
+function getStoredJoinToken(partyId) {
+  if (!partyId) return "";
+  return localStorage.getItem(`joinToken:${normalizePartyId(partyId)}`) || "";
 }
 
 function setMessage(message, isError = false) {

@@ -5,7 +5,7 @@ A live Eurovision-style party scoreboard for collecting juror rankings, revealin
 ## Requirements
 
 - Node.js 20 or newer
-- Everyone using the locally hosted mode must be on the same local network as the host computer.
+- For local hosting, guests must be on the same local network as the host computer.
 
 ## Install Node.js
 
@@ -71,6 +71,8 @@ The host can open:
 http://localhost:4173
 ```
 
+Opening the app with no saved party now shows a start screen where you can create a new party or join an existing one with a 6-character party code.
+
 The app stores party data in `data/parties/`. That folder is ignored by git.
 
 ## Run From VS Code
@@ -99,14 +101,30 @@ If VS Code says `node` is not recognized, install Node.js using the instructions
 
 Keep VS Code open while guests are voting. To stop the app, use the red stop button in the Run and Debug toolbar.
 
-## Host A Local Watch Party
+## Create Or Join A Party
 
-1. Start the app on the host computer.
-2. Open `http://localhost:4173` on the host computer.
+When you open the app without a party link, choose one of these options:
+
+- `Create Party` starts a new scoreboard and gives it a 6-character party code.
+- `Join Party` opens an existing scoreboard when you enter its party code.
+- A join password is optional when creating a party. Guests only need it the first time they join from a device.
+
+The party code is also in the party link, for example:
+
+```text
+http://localhost:4173/?party=ABC234
+```
+
+Old local links such as `?party=local` still work.
+
+## Host A Watch Party
+
+1. Start the app or open the deployed site.
+2. Create a party from the start screen.
 3. Go to `Host` and claim host access.
 4. Go to `Settings`.
 5. Optional: open `Edit Entries` to choose or edit the songs before anyone votes.
-6. Share the invite link or QR code shown in Settings with guests.
+6. Share the invite link, QR code, or party code shown in Settings with guests.
 
 Settings also shows a QR code for the selected invite link. Guests can scan it with their phone camera instead of typing the address.
 
@@ -124,11 +142,12 @@ Some computers have multiple network adapters, so the app may find more than one
 
 Guests do not need host access.
 
-1. Open the invite link or scan the QR code.
-2. Stay on the `Submit` tab.
-3. Enter a jury name.
-4. Pick exactly 10 different entries in order.
-5. Click `Send Ranking`.
+1. Open the invite link, scan the QR code, or enter the party code on the start screen.
+2. Enter the join password if the host set one.
+3. Stay on the `Submit` tab.
+4. Enter a jury name.
+5. Pick exactly 10 different entries in order.
+6. Click `Send Ranking`.
 
 The first choice receives 12 points, then 10, 8, 7, 6, 5, 4, 3, 2, and 1 point.
 
@@ -227,13 +246,13 @@ http://YOUR-IP:4173/?party=local
 
 ## Parties And Entries
 
-The default local party is:
+The default local party is still available for old links and quick local tests:
 
 ```text
 local
 ```
 
-You can create additional parties in `Settings`. Each party has its own:
+New parties created from the start screen use 6-character codes. Each party has its own:
 
 - entries
 - submitted ballots
@@ -264,4 +283,4 @@ Guest devices can submit and edit their own ballot until the host starts present
 
 ## Public Hosting Notes
 
-The app has party IDs and host locking so it can be deployed publicly later. For a real public deployment, use HTTPS and persistent storage/backups. The current version uses local JSON files, which is fine for local hosting and simple demos but not ideal as the only storage for a production public service.
+The app is now designed around party codes for public deployment. For a real public deployment, use HTTPS and persistent storage/backups. The current version uses local JSON files, which is fine for local hosting and simple demos but not ideal as the only storage for a production public service.

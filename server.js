@@ -12,6 +12,9 @@ const ENTRY_LIST_DIR = path.join(ROOT, "entries");
 const DEFAULT_ENTRY_LIST_ID = "2026";
 const ENTRIES_FILE = path.resolve(process.env.ENTRIES_FILE || path.join(ENTRY_LIST_DIR, `${DEFAULT_ENTRY_LIST_ID}.tsv`));
 const DEFAULT_PARTY_ID = "local";
+const PARTY_CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const PARTY_CODE_LENGTH = 6;
+const CODE_PATTERN = /^[a-hj-km-np-z2-9]{6}$/;
 const POINTS_BY_RANK = [12, 10, 8, 7, 6, 5, 4, 3, 2, 1];
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -69,22 +72,61 @@ async function handleApi(req, res, url) {
 
   if (req.method === "POST" && url.pathname === "/api/parties") {
     const body = await readJson(req);
-    const party = createInitialState(createPartyId(), String(body.name || "Eurovision Party").trim() || "Eurovision Party");
+    const joinPassword = body.joinPassword ? String(body.joinPassword).trim() : null;
+    if (joinPassword && joinPassword.length < 4) {
+      return sendJson(res, 400, { error: "Join password must be at least 4 characters." });
+    }
+    const party = createInitialState(createPartyId(), String(body.name || "Eurovision Party").trim() || "Eurovision Party", joinPassword);
     const hostToken = createToken();
+    const joinToken = createToken();
     party.host = {
       mode: body.password ? "password" : "device",
       tokens: [hashToken(hostToken)],
       password: body.password ? hashPassword(String(body.password)) : null
     };
+    party.join.tokens = [hashToken(joinToken)];
     savePartyState(party);
-    return sendJson(res, 200, { party: getPublicState(party, hostToken), hostToken });
+    return sendJson(res, 200, { party: getPublicState(party, hostToken, joinToken), hostToken, joinToken });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/parties/join") {
+    const body = await readJson(req);
+    const partyId = normalizePartyId(getPartyId(url, req));
+    const state = loadPartyState(partyId);
+
+    if (!state.join?.password) {
+      const joinToken = createToken();
+      state.join.tokens = [...new Set([...(state.join?.tokens || []), hashToken(joinToken)])];
+      savePartyState(state);
+      return sendJson(res, 200, {
+        party: getPublicState(state, getHostToken(req, url), joinToken),
+        joinToken
+      });
+    }
+
+    const password = String(body.password || "");
+    if (!verifyPassword(password, state.join.password)) {
+      return sendJson(res, 403, { error: "Incorrect join password." });
+    }
+
+    const joinToken = createToken();
+    state.join.tokens = [...new Set([...(state.join.tokens || []), hashToken(joinToken)])];
+    savePartyState(state);
+    return sendJson(res, 200, {
+      party: getPublicState(state, getHostToken(req, url), joinToken),
+      joinToken
+    });
   }
 
   const partyId = getPartyId(url, req);
+  const joinToken = getJoinToken(req, url);
   const state = loadPartyState(partyId);
 
   if (req.method === "GET" && url.pathname === "/api/state") {
-    return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
+    if (!isJoinAuthorized(state, joinToken)) {
+      return sendJson(res, 401, { error: "join_password_required", partyName: state.name, partyId: state.id });
+    }
+    return sendJson(res, 200, getPublicState(state, getHostToken(req, url), joinToken));
   }
 
   if (req.method === "POST" && url.pathname === "/api/host/claim") {
@@ -94,7 +136,7 @@ async function handleApi(req, res, url) {
       return sendJson(res, result.status, { error: result.error });
     }
     saveAndBroadcast(state);
-    return sendJson(res, 200, { hostToken: result.hostToken, party: getPublicState(state, result.hostToken) });
+    return sendJson(res, 200, { hostToken: result.hostToken, party: getPublicState(state, result.hostToken, joinToken) });
   }
 
   if (req.method === "POST" && url.pathname === "/api/host/password") {
@@ -110,7 +152,7 @@ async function handleApi(req, res, url) {
     state.host.mode = "password";
     state.host.password = hashPassword(password);
     saveAndBroadcast(state);
-    return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
+    return sendJson(res, 200, getPublicState(state, getHostToken(req, url), joinToken));
   }
 
   if (req.method === "POST" && url.pathname === "/api/entries") {
@@ -143,7 +185,7 @@ async function handleApi(req, res, url) {
     state.votingStatusChangedAt = new Date().toISOString();
     saveAndBroadcast(state);
     return sendJson(res, 200, {
-      party: getPublicState(state, getHostToken(req, url)),
+      party: getPublicState(state, getHostToken(req, url), joinToken),
       entryLists: getEntryLists(),
       savedListId: savedListId || null
     });
@@ -173,7 +215,7 @@ async function handleApi(req, res, url) {
     state.votingStatus = "open";
     state.votingStatusChangedAt = new Date().toISOString();
     saveAndBroadcast(state);
-    return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
+    return sendJson(res, 200, getPublicState(state, getHostToken(req, url), joinToken));
   }
 
   if (req.method === "POST" && url.pathname === "/api/submissions") {
@@ -239,7 +281,7 @@ async function handleApi(req, res, url) {
     const result = addPracticeSubmissions(state, count);
     if (result.error) return sendJson(res, result.status, { error: result.error });
     saveAndBroadcast(state);
-    return sendJson(res, 200, { ...getPublicState(state, getHostToken(req, url)), addedPracticeBallots: result.added });
+    return sendJson(res, 200, { ...getPublicState(state, getHostToken(req, url), joinToken), addedPracticeBallots: result.added });
   }
 
   if (req.method === "POST" && url.pathname === "/api/submissions/remove") {
@@ -266,7 +308,7 @@ async function handleApi(req, res, url) {
     }
 
     saveAndBroadcast(state);
-    return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
+    return sendJson(res, 200, getPublicState(state, getHostToken(req, url), joinToken));
   }
 
   if (req.method === "POST" && url.pathname === "/api/reveal/start") {
@@ -287,7 +329,7 @@ async function handleApi(req, res, url) {
     startSubmissionReveal(state, submission);
     state.winnerReveal = null;
     saveAndBroadcast(state);
-    return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
+    return sendJson(res, 200, getPublicState(state, getHostToken(req, url), joinToken));
   }
 
   if (req.method === "POST" && url.pathname === "/api/reveal/next-jury") {
@@ -312,7 +354,7 @@ async function handleApi(req, res, url) {
     startSubmissionReveal(state, nextSubmission);
     state.winnerReveal = null;
     saveAndBroadcast(state);
-    return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
+    return sendJson(res, 200, getPublicState(state, getHostToken(req, url), joinToken));
   }
 
   if (req.method === "POST" && url.pathname === "/api/reveal/next") {
@@ -322,7 +364,7 @@ async function handleApi(req, res, url) {
     const result = awardNextPoint(state);
     if (result.error) return sendJson(res, result.status, { error: result.error });
     saveAndBroadcast(state);
-    return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
+    return sendJson(res, 200, getPublicState(state, getHostToken(req, url), joinToken));
   }
 
   if (req.method === "POST" && url.pathname === "/api/reveal/to") {
@@ -333,7 +375,7 @@ async function handleApi(req, res, url) {
     const result = awardThroughPoint(state, Number(body.targetPoints));
     if (result.error) return sendJson(res, result.status, { error: result.error });
     saveAndBroadcast(state);
-    return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
+    return sendJson(res, 200, getPublicState(state, getHostToken(req, url), joinToken));
   }
 
   if (req.method === "POST" && url.pathname === "/api/reveal/finish") {
@@ -348,7 +390,7 @@ async function handleApi(req, res, url) {
     }
     state.currentReveal = null;
     saveAndBroadcast(state);
-    return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
+    return sendJson(res, 200, getPublicState(state, getHostToken(req, url), joinToken));
   }
 
   if (req.method === "POST" && url.pathname === "/api/winner/show") {
@@ -370,7 +412,7 @@ async function handleApi(req, res, url) {
     state.currentReveal = null;
     state.winnerReveal = { shownAt: new Date().toISOString() };
     saveAndBroadcast(state);
-    return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
+    return sendJson(res, 200, getPublicState(state, getHostToken(req, url), joinToken));
   }
 
   if (req.method === "POST" && url.pathname === "/api/voting/status") {
@@ -386,7 +428,7 @@ async function handleApi(req, res, url) {
     state.votingStatus = status;
     state.votingStatusChangedAt = new Date().toISOString();
     saveAndBroadcast(state);
-    return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
+    return sendJson(res, 200, getPublicState(state, getHostToken(req, url), joinToken));
   }
 
   if (req.method === "POST" && url.pathname === "/api/reset") {
@@ -407,7 +449,7 @@ async function handleApi(req, res, url) {
       Object.assign(state, fresh);
     }
     saveAndBroadcast(state);
-    return sendJson(res, 200, getPublicState(state, getHostToken(req, url)));
+    return sendJson(res, 200, getPublicState(state, getHostToken(req, url), joinToken));
   }
 
   return sendJson(res, 404, { error: "Not found." });
@@ -416,6 +458,12 @@ async function handleApi(req, res, url) {
 function handleEvents(req, res, url) {
   const partyId = getPartyId(url, req);
   const state = loadPartyState(partyId);
+  const joinToken = getJoinToken(req, url);
+
+  if (!isJoinAuthorized(state, joinToken)) {
+    sendJson(res, 401, { error: "join_password_required", partyName: state.name, partyId: state.id });
+    return;
+  }
 
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
@@ -423,10 +471,10 @@ function handleEvents(req, res, url) {
     Connection: "keep-alive",
     "X-Accel-Buffering": "no"
   });
-  res.write(`data: ${JSON.stringify(getPublicState(state, getHostToken(req, url)))}\n\n`);
+  res.write(`data: ${JSON.stringify(getPublicState(state, getHostToken(req, url), joinToken))}\n\n`);
 
   if (!clients.has(partyId)) clients.set(partyId, new Set());
-  const client = { res, hostToken: getHostToken(req, url) };
+  const client = { res, hostToken: getHostToken(req, url), joinToken };
   clients.get(partyId).add(client);
 
   req.on("close", () => {
@@ -457,7 +505,7 @@ function serveStatic(requestPath, res) {
   });
 }
 
-function getPublicState(state, hostToken = "") {
+function getPublicState(state, hostToken = "", joinToken = "") {
   const totals = new Map(state.entries.map((entry) => [entry.id, 0]));
   for (const vote of state.appliedVotes) {
     totals.set(vote.entryId, (totals.get(vote.entryId) || 0) + vote.points);
@@ -494,6 +542,10 @@ function getPublicState(state, hostToken = "") {
       mode: state.host?.mode || "open",
       hasPassword: Boolean(state.host?.password),
       isHost: isHostToken(state, hostToken)
+    },
+    join: {
+      hasPassword: Boolean(state.join?.password),
+      isAuthorized: isJoinAuthorized(state, joinToken)
     },
     entriesText: formatEntries(state.entries),
     scoreboard,
@@ -755,7 +807,7 @@ function saveAndBroadcast(state) {
   savePartyState(state);
   const partyClients = clients.get(state.id) || new Set();
   for (const client of partyClients) {
-    client.res.write(`data: ${JSON.stringify(getPublicState(state, client.hostToken))}\n\n`);
+    client.res.write(`data: ${JSON.stringify(getPublicState(state, client.hostToken, client.joinToken))}\n\n`);
   }
 }
 
@@ -772,6 +824,8 @@ function loadPartyState(partyId) {
     };
     state.id = id;
     state.host = state.host || { mode: "open", tokens: [], password: null };
+    state.join = state.join || { password: null, tokens: [] };
+    state.join.tokens ||= [];
     state.entriesFile = state.entriesFile ?? null;
     state.winnerReveal = state.winnerReveal || null;
     state.votingStatus = state.votingStatus || "open";
@@ -789,7 +843,7 @@ function savePartyState(state) {
   fs.writeFileSync(getPartyFile(state.id), JSON.stringify(state, null, 2));
 }
 
-function createInitialState(id = DEFAULT_PARTY_ID, name = "Eurovision Party") {
+function createInitialState(id = DEFAULT_PARTY_ID, name = "Eurovision Party", joinPassword = null) {
   return {
     id: normalizePartyId(id),
     name,
@@ -802,6 +856,10 @@ function createInitialState(id = DEFAULT_PARTY_ID, name = "Eurovision Party") {
     votingStatus: "open",
     votingStatusChangedAt: new Date().toISOString(),
     host: { mode: "open", tokens: [], password: null },
+    join: {
+      password: joinPassword ? hashPassword(joinPassword) : null,
+      tokens: []
+    },
     createdAt: new Date().toISOString()
   };
 }
@@ -818,8 +876,28 @@ function getHostToken(req, url) {
   return String(url.searchParams.get("hostToken") || req.headers["x-host-token"] || "");
 }
 
+function getJoinToken(req, url) {
+  return String(url.searchParams.get("joinToken") || req.headers["x-join-token"] || "");
+}
+
+function isJoinAuthorized(state, token) {
+  if (!state.join?.password) return true;
+  if (!token) return false;
+  const tokenHash = hashToken(token);
+  return (state.join.tokens || []).some((t) => safeEqual(t, tokenHash));
+}
+
 function createPartyId() {
-  return randomBytes(4).toString("base64url").toLowerCase();
+  return generatePartyCode();
+}
+
+function generatePartyCode() {
+  const bytes = randomBytes(PARTY_CODE_LENGTH);
+  let code = "";
+  for (let i = 0; i < PARTY_CODE_LENGTH; i += 1) {
+    code += PARTY_CODE_CHARS[bytes[i] % PARTY_CODE_CHARS.length];
+  }
+  return code.toLowerCase();
 }
 
 function getNetworkUrls(partyId) {
@@ -860,11 +938,14 @@ function scoreNetworkAddress(name, address) {
 }
 
 function normalizePartyId(value) {
-  return String(value || DEFAULT_PARTY_ID)
-    .toLowerCase()
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return DEFAULT_PARTY_ID;
+  if (CODE_PATTERN.test(raw)) return raw;
+  const normalized = raw
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/^-|-$/g, "")
-    .slice(0, 48) || DEFAULT_PARTY_ID;
+    .slice(0, 48);
+  return normalized || DEFAULT_PARTY_ID;
 }
 
 function readEntriesFile() {
