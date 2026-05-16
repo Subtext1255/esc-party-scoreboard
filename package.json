@@ -1,0 +1,12 @@
+{
+  "name": "eurovision-scoreboard-party",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A live Eurovision-style party scoreboard with guest jury submissions.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

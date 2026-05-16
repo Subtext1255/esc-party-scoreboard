@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Eurovision Party Scoreboard</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="score-stage" aria-labelledby="scoreboard-title">
+        <div class="stage-topline">
+          <div>
+            <p class="eyebrow">Party final</p>
+            <h1 id="scoreboard-title">Eurovision Scoreboard</h1>
+          </div>
+          <div class="connection-pill" id="connection-status">Connecting</div>
+        </div>
+
+        <div class="spotlight" id="spotlight">
+          <span class="spotlight-label">Now revealing</span>
+          <strong>No jury selected</strong>
+          <span>Choose a pending jury from Host Control.</span>
+        </div>
+
+        <div class="scoreboard" id="scoreboard" aria-live="polite"></div>
+      </section>
+
+      <aside class="control-deck">
+        <div class="tabs" role="tablist" aria-label="App sections">
+          <button class="tab is-active" type="button" data-tab="vote">Submit</button>
+          <button class="tab" type="button" data-tab="host">Host</button>
+          <button class="tab" type="button" data-tab="settings">Settings</button>
+        </div>
+
+        <section class="panel is-active" id="vote-panel" data-panel="vote">
+          <h2>Submit Ranking</h2>
+          <form id="vote-form">
+            <label>
+              Jury name
+              <input id="juror-name" name="juror" autocomplete="name" placeholder="Your name">
+            </label>
+            <div class="ranking-list" id="ranking-list"></div>
+            <button class="primary-action" type="submit" id="submit-ranking">Send Ranking</button>
+            <p class="form-note" id="vote-message"></p>
+          </form>
+        </section>
+
+        <section class="panel" id="host-panel" data-panel="host">
+          <h2>Host Control</h2>
+          <div class="host-lock" id="host-lock">
+            <div>
+              <strong id="host-status">Host controls locked</strong>
+              <span id="host-status-detail">Claim this browser or enter the host password.</span>
+            </div>
+            <div class="host-lock-actions">
+              <input id="host-password" type="password" autocomplete="current-password" placeholder="Host password">
+              <button type="button" id="claim-host">Claim Host</button>
+            </div>
+          </div>
+          <div class="host-actions">
+            <div class="reveal-actions" aria-label="Reveal point groups">
+              <button type="button" id="reveal-next">Reveal 1</button>
+              <button class="primary-action" type="button" data-reveal-to="7">Reveal 7</button>
+              <button type="button" data-reveal-to="8">Reveal 8</button>
+              <button type="button" data-reveal-to="10">Reveal 10</button>
+              <button type="button" data-reveal-to="12">Reveal 12</button>
+            </div>
+            <button type="button" id="finish-reveal">Clear Reveal</button>
+          </div>
+          <div class="jury-queue" id="jury-queue"></div>
+          <div class="danger-zone">
+            <button type="button" id="reset-votes">Reset Votes</button>
+          </div>
+        </section>
+
+        <section class="panel" id="settings-panel" data-panel="settings">
+          <h2>Settings</h2>
+          <div class="settings-group">
+            <span>Party</span>
+            <div class="party-tools">
+              <input id="party-name" placeholder="Party name">
+              <button type="button" id="create-party">Create Party</button>
+            </div>
+            <div class="party-tools">
+              <input id="party-id-input" placeholder="Party code">
+              <button type="button" id="join-party">Join</button>
+            </div>
+            <label>
+              Invite link
+              <input id="invite-link" readonly>
+            </label>
+            <label>
+              Detected local links
+              <select id="invite-link-options"></select>
+            </label>
+            <p class="form-note" id="invite-help"></p>
+          </div>
+
+          <div class="settings-group">
+            <span>Host Password</span>
+            <div class="party-tools">
+              <input id="new-host-password" type="password" autocomplete="new-password" placeholder="New host password">
+              <button type="button" id="set-host-password">Set Password</button>
+            </div>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <div class="settings-group">
+            <span>Background</span>
+            <div class="segmented-control" aria-label="Background style">
+              <button class="is-active" type="button" data-background-mode="image">Image</button>
+              <button type="button" data-background-mode="css">CSS</button>
+            </div>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <h2>Entries</h2>
+          <label>
+            Country, artist, song
+            <textarea id="entries-input" spellcheck="false"></textarea>
+          </label>
+          <button class="primary-action" type="button" id="save-entries">Save Entries</button>
+          <p class="form-note" id="entries-message"></p>
+        </section>
+      </aside>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
