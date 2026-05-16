@@ -11,6 +11,7 @@ const session = {
   partyId: getInitialPartyId(),
   hostToken: "",
   ballotToken: "",
+  activeSubmissionId: "",
   networkUrls: []
 };
 
@@ -23,6 +24,8 @@ const els = {
   voteMessage: document.querySelector("#vote-message"),
   jurorName: document.querySelector("#juror-name"),
   submitRanking: document.querySelector("#submit-ranking"),
+  deviceBallots: document.querySelector("#device-ballots"),
+  newBallot: document.querySelector("#new-ballot"),
   juryQueue: document.querySelector("#jury-queue"),
   revealNext: document.querySelector("#reveal-next"),
   revealButtons: [...document.querySelectorAll("[data-reveal-to]")],
@@ -50,7 +53,7 @@ const els = {
 
 let events;
 session.hostToken = getStoredHostToken(session.partyId);
-session.ballotToken = getStoredBallotToken(session.partyId);
+loadActiveDeviceBallot();
 applyBackgroundMode(localStorage.getItem("backgroundMode") || "image");
 connectEvents();
 bindTabs();
@@ -86,6 +89,7 @@ function updateState(nextState) {
   Object.assign(state, nextState);
   renderScoreboard();
   renderRankingForm();
+  renderDeviceBallots();
   renderHost();
   renderEntries();
   renderSpotlight();
@@ -114,12 +118,12 @@ function renderScoreboard() {
 
 function renderRankingForm() {
   const ownBallot = getOwnBallot();
-  const previousValues = ownBallot?.ranking || getSelectedRanking();
+  const previousValues = ownBallot?.ranking || (session.activeSubmissionId ? [] : getSelectedRanking());
   const points = state.pointsByRank.length ? state.pointsByRank : [12, 10, 8, 7, 6, 5, 4, 3, 2, 1];
   const isLocked = Boolean(ownBallot && ownBallot.status !== "pending");
 
-  if (ownBallot && document.activeElement !== els.jurorName) {
-    els.jurorName.value = ownBallot.juror;
+  if (document.activeElement !== els.jurorName) {
+    els.jurorName.value = ownBallot?.juror || "";
   }
 
   els.rankingList.innerHTML = points
@@ -147,6 +151,23 @@ function renderRankingForm() {
     setMessage(els.voteMessage, "Presentation has started for your ballot, so it is locked.");
   }
   disableDuplicateOptions();
+}
+
+function renderDeviceBallots() {
+  const savedBallots = getDeviceBallots()
+    .map((ballot) => ({ ...ballot, submission: state.submissions.find((submission) => submission.id === ballot.submissionId) }))
+    .filter((ballot) => ballot.submission);
+
+  saveDeviceBallots(savedBallots.map(({ submission, ...ballot }) => ballot));
+
+  els.deviceBallots.innerHTML = [
+    `<option value="">New ballot</option>`,
+    ...savedBallots.map((ballot) => {
+      const status = ballot.submission.status === "pending" ? "editable" : "locked";
+      return `<option value="${escapeHtml(ballot.submissionId)}">${escapeHtml(ballot.submission.juror)} (${status})</option>`;
+    })
+  ].join("");
+  els.deviceBallots.value = session.activeSubmissionId || "";
 }
 
 function renderHost() {
@@ -290,8 +311,12 @@ function bindActions() {
         }
       }).then((data) => {
         session.ballotToken = data.ballotToken;
-        saveBallotToken(session.partyId, data.ballotToken);
-        localStorage.setItem(`submissionId:${session.partyId}`, data.submissionId);
+        session.activeSubmissionId = data.submissionId;
+        saveDeviceBallot({
+          submissionId: data.submissionId,
+          ballotToken: data.ballotToken,
+          juror: data.submission.juror
+        });
         setMessage(els.voteMessage, "Ranking saved. You can update it until the host starts presenting your ballot.");
       });
     } catch (error) {
@@ -308,6 +333,8 @@ function bindActions() {
   els.createParty.addEventListener("click", () => createParty());
   els.joinParty.addEventListener("click", () => switchParty(els.partyIdInput.value));
   els.setHostPassword.addEventListener("click", () => setHostPassword());
+  els.deviceBallots.addEventListener("change", () => selectDeviceBallot(els.deviceBallots.value));
+  els.newBallot.addEventListener("click", () => selectDeviceBallot(""));
   els.inviteLinkOptions.addEventListener("change", () => {
     els.inviteLink.value = els.inviteLinkOptions.value;
     renderInviteQr(els.inviteLinkOptions.value);
@@ -373,7 +400,7 @@ async function setHostPassword() {
 function switchParty(partyId, hostToken = getStoredHostToken(partyId), knownState = null) {
   session.partyId = normalizePartyId(partyId);
   session.hostToken = hostToken || "";
-  session.ballotToken = getStoredBallotToken(session.partyId);
+  loadActiveDeviceBallot();
   saveHostToken(session.partyId, session.hostToken);
   localStorage.setItem("partyId", session.partyId);
   const url = new URL(window.location.href);
@@ -482,14 +509,6 @@ function getStoredHostToken(partyId) {
 
 function saveHostToken(partyId, token) {
   if (token) localStorage.setItem(`hostToken:${normalizePartyId(partyId)}`, token);
-}
-
-function getStoredBallotToken(partyId) {
-  return localStorage.getItem(`ballotToken:${normalizePartyId(partyId)}`) || "";
-}
-
-function saveBallotToken(partyId, token) {
-  if (token) localStorage.setItem(`ballotToken:${normalizePartyId(partyId)}`, token);
 }
 
 function getBestInviteLink(partyId) {
@@ -739,9 +758,45 @@ function isLocalHost() {
 }
 
 function getOwnBallot() {
-  const submissionId = localStorage.getItem(`submissionId:${session.partyId}`);
-  if (!submissionId) return null;
-  return state.submissions.find((submission) => submission.id === submissionId) || null;
+  if (!session.activeSubmissionId) return null;
+  return state.submissions.find((submission) => submission.id === session.activeSubmissionId) || null;
+}
+
+function selectDeviceBallot(submissionId) {
+  const saved = getDeviceBallots().find((ballot) => ballot.submissionId === submissionId);
+  session.activeSubmissionId = saved?.submissionId || "";
+  session.ballotToken = saved?.ballotToken || "";
+  localStorage.setItem(`activeSubmissionId:${session.partyId}`, session.activeSubmissionId);
+  setMessage(els.voteMessage, "");
+  renderRankingForm();
+  renderDeviceBallots();
+}
+
+function loadActiveDeviceBallot() {
+  const savedBallots = getDeviceBallots();
+  const activeSubmissionId = localStorage.getItem(`activeSubmissionId:${session.partyId}`) || savedBallots[0]?.submissionId || "";
+  const active = savedBallots.find((ballot) => ballot.submissionId === activeSubmissionId);
+  session.activeSubmissionId = active?.submissionId || "";
+  session.ballotToken = active?.ballotToken || "";
+}
+
+function getDeviceBallots() {
+  try {
+    return JSON.parse(localStorage.getItem(`deviceBallots:${session.partyId}`) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveDeviceBallots(ballots) {
+  localStorage.setItem(`deviceBallots:${session.partyId}`, JSON.stringify(ballots));
+}
+
+function saveDeviceBallot(nextBallot) {
+  const ballots = getDeviceBallots().filter((ballot) => ballot.submissionId !== nextBallot.submissionId);
+  ballots.push(nextBallot);
+  saveDeviceBallots(ballots);
+  localStorage.setItem(`activeSubmissionId:${session.partyId}`, nextBallot.submissionId);
 }
 
 function setMessage(element, message, isError = false) {

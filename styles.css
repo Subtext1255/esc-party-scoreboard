@@ -560,6 +560,19 @@ textarea:focus {
   margin: 16px 0;
 }
 
+.ballot-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.ballot-tools button {
+  min-width: 112px;
+  padding: 0 12px;
+}
+
 .ranking-row {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr) 46px;
@@ -745,7 +758,8 @@ textarea:focus {
   }
 
   .host-lock-actions,
-  .party-tools {
+  .party-tools,
+  .ballot-tools {
     grid-template-columns: 1fr;
   }
 }

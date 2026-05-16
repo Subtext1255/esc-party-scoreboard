@@ -221,7 +221,8 @@ async function handleApi(req, res, url) {
       juror: submission.juror,
       nextIndex: 9,
       lastAward: null,
-      lastAwards: []
+      lastAwards: [],
+      highlightedAwards: []
     };
     submission.status = "revealing";
     saveAndBroadcast(state);
@@ -369,8 +370,10 @@ function getPublicState(state, hostToken = "") {
 }
 
 function getRecentAwards(state) {
-  const awards = state.currentReveal?.lastAwards?.length
-    ? state.currentReveal.lastAwards
+  const awards = state.currentReveal?.highlightedAwards?.length
+    ? state.currentReveal.highlightedAwards
+    : state.currentReveal?.lastAwards?.length
+      ? state.currentReveal.lastAwards
     : state.currentReveal?.lastAward
       ? [state.currentReveal.lastAward]
       : [];
@@ -455,6 +458,7 @@ function applyAwards(state, submission, rankIndexes, options = {}) {
   state.appliedVotes.push(...awards);
   state.currentReveal.lastAwards = awards;
   state.currentReveal.lastAward = awards[awards.length - 1] || null;
+  state.currentReveal.highlightedAwards = [...(state.currentReveal.highlightedAwards || []), ...awards];
 
   if (!options.nextIndexAlreadyMoved) {
     state.currentReveal.nextIndex -= awards.length;
