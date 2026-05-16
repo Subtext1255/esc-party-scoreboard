@@ -167,6 +167,7 @@ h2 {
 }
 
 .spotlight {
+  position: relative;
   display: grid;
   gap: 3px;
   min-height: 66px;
@@ -175,6 +176,7 @@ h2 {
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 8px;
   background: linear-gradient(105deg, rgba(52, 215, 232, 0.18), rgba(245, 85, 166, 0.14), rgba(255, 209, 102, 0.12));
+  overflow: hidden;
 }
 
 .spotlight-label {
@@ -192,6 +194,43 @@ h2 {
   font-size: clamp(1.05rem, 1.7vw, 1.8rem);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.spotlight.is-starting-reveal {
+  animation: spotlightStart 780ms cubic-bezier(0.2, 0.82, 0.2, 1);
+}
+
+.spotlight.is-completing-reveal {
+  animation: spotlightComplete 1150ms ease-out;
+}
+
+.spotlight.is-clearing-reveal {
+  animation: spotlightClear 720ms ease-out;
+}
+
+.spotlight.is-starting-reveal::after,
+.spotlight.is-completing-reveal::after,
+.spotlight.is-clearing-reveal::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 12%, rgba(255, 255, 255, 0.44) 48%, transparent 84%);
+  transform: translateX(-115%);
+}
+
+.spotlight.is-starting-reveal::after {
+  animation: spotlightSweep 760ms ease-out;
+}
+
+.spotlight.is-completing-reveal::after {
+  background: linear-gradient(100deg, transparent 8%, rgba(255, 209, 102, 0.58) 46%, transparent 86%);
+  animation: spotlightSweep 980ms ease-out;
+}
+
+.spotlight.is-clearing-reveal::after {
+  background: linear-gradient(100deg, transparent 10%, rgba(174, 185, 200, 0.34) 48%, transparent 86%);
+  animation: spotlightFadeSweep 680ms ease-out;
 }
 
 .scoreboard {
@@ -396,10 +435,114 @@ h2 {
   }
 }
 
+@keyframes spotlightStart {
+  0% {
+    border-color: rgba(52, 215, 232, 0.32);
+    box-shadow: 0 0 0 rgba(52, 215, 232, 0);
+    transform: translateY(0) scale(0.992);
+  }
+
+  35% {
+    border-color: rgba(52, 215, 232, 0.82);
+    box-shadow: 0 0 28px rgba(52, 215, 232, 0.22);
+    transform: translateY(-1px) scale(1.006);
+  }
+
+  100% {
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow: none;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes spotlightComplete {
+  0% {
+    border-color: rgba(255, 209, 102, 0.34);
+    box-shadow: 0 0 0 rgba(255, 209, 102, 0);
+    transform: scale(1);
+  }
+
+  28% {
+    border-color: rgba(255, 209, 102, 0.9);
+    box-shadow: 0 0 34px rgba(255, 209, 102, 0.28);
+    transform: scale(1.008);
+  }
+
+  68% {
+    border-color: rgba(245, 85, 166, 0.62);
+    box-shadow: 0 0 24px rgba(245, 85, 166, 0.2);
+  }
+
+  100% {
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow: none;
+    transform: scale(1);
+  }
+}
+
+@keyframes spotlightSweep {
+  0% {
+    opacity: 0;
+    transform: translateX(-115%);
+  }
+
+  16% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(115%);
+  }
+}
+
+@keyframes spotlightClear {
+  0% {
+    border-color: rgba(174, 185, 200, 0.46);
+    box-shadow: 0 0 24px rgba(174, 185, 200, 0.14);
+    opacity: 0.88;
+    transform: scale(0.996);
+  }
+
+  55% {
+    border-color: rgba(255, 255, 255, 0.24);
+    box-shadow: 0 0 12px rgba(174, 185, 200, 0.08);
+    opacity: 1;
+  }
+
+  100% {
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow: none;
+    transform: scale(1);
+  }
+}
+
+@keyframes spotlightFadeSweep {
+  0% {
+    opacity: 0;
+    transform: translateX(-90%);
+  }
+
+  22% {
+    opacity: 0.72;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(85%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .score-row,
   .score-row.has-points,
-  .score-row.has-points::after {
+  .score-row.has-points::after,
+  .spotlight.is-starting-reveal,
+  .spotlight.is-completing-reveal,
+  .spotlight.is-clearing-reveal,
+  .spotlight.is-starting-reveal::after,
+  .spotlight.is-completing-reveal::after,
+  .spotlight.is-clearing-reveal::after {
     animation: none;
     transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
   }
@@ -495,6 +638,7 @@ h2 {
   display: block;
   width: min(232px, 100%);
   height: auto;
+  image-rendering: pixelated;
 }
 
 .host-lock {
@@ -598,6 +742,12 @@ textarea:focus {
   padding: 0 12px;
 }
 
+.ballot-tool-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
 .ranking-row {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr) 46px;
@@ -656,15 +806,18 @@ textarea:focus {
 
 .reveal-actions {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
 .reveal-actions button {
   min-width: 0;
-  padding: 0 8px;
-  font-size: 0.88rem;
+  padding: 6px 8px;
+  font-size: 0.82rem;
   font-weight: 900;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .jury-queue {
@@ -790,5 +943,9 @@ textarea:focus {
   .party-tools,
   .ballot-tools {
     grid-template-columns: 1fr;
+  }
+
+  .ballot-tool-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

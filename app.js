@@ -26,6 +26,7 @@ const els = {
   submitRanking: document.querySelector("#submit-ranking"),
   deviceBallots: document.querySelector("#device-ballots"),
   newBallot: document.querySelector("#new-ballot"),
+  clearRanking: document.querySelector("#clear-ranking"),
   juryQueue: document.querySelector("#jury-queue"),
   revealNext: document.querySelector("#reveal-next"),
   revealButtons: [...document.querySelectorAll("[data-reveal-to]")],
@@ -53,6 +54,7 @@ const els = {
 };
 
 let events;
+let hasRenderedSpotlight = false;
 session.hostToken = getStoredHostToken(session.partyId);
 loadActiveDeviceBallot();
 applyBackgroundMode(localStorage.getItem("backgroundMode") || "image");
@@ -88,13 +90,15 @@ async function loadInitialState() {
 }
 
 function updateState(nextState) {
+  const previousReveal = getRevealSnapshot(state.currentReveal);
   Object.assign(state, nextState);
+  const spotlightAnimation = hasRenderedSpotlight ? getSpotlightAnimation(previousReveal, getRevealSnapshot(state.currentReveal)) : "";
   renderScoreboard();
   renderRankingForm();
   renderDeviceBallots();
   renderHost();
   renderEntries();
-  renderSpotlight();
+  renderSpotlight(spotlightAnimation);
   renderPartySettings();
 }
 
@@ -249,7 +253,7 @@ function renderPartySettings() {
       : "Share this link with guests for this party.";
 }
 
-function renderSpotlight() {
+function renderSpotlight(animation = "") {
   const reveal = state.currentReveal;
   if (!reveal) {
     els.spotlight.innerHTML = `
@@ -257,6 +261,8 @@ function renderSpotlight() {
       <strong>No jury selected</strong>
       <span>Choose a pending jury from Host Control.</span>
     `;
+    animateSpotlight(animation);
+    hasRenderedSpotlight = true;
     return;
   }
 
@@ -270,6 +276,8 @@ function renderSpotlight() {
         <strong>${escapeHtml(reveal.juror)} awards 1-${highestAward.points} points to ${lastAwards.length} entries</strong>
         <span>${reveal.finished ? "Jury complete." : "Next award is ready."}</span>
       `;
+      animateSpotlight(animation);
+      hasRenderedSpotlight = true;
       return;
     }
 
@@ -277,6 +285,8 @@ function renderSpotlight() {
       <strong>${escapeHtml(reveal.juror)} awards ${highestAward.points} points to ${flagMarkup(entry)}${escapeHtml(entry?.countryName || entry?.country || "Unknown entry")}</strong>
       <span>${escapeHtml(entryDetail(entry))}${reveal.finished ? " Jury complete." : ""}</span>
     `;
+    animateSpotlight(animation);
+    hasRenderedSpotlight = true;
     return;
   }
 
@@ -285,6 +295,30 @@ function renderSpotlight() {
     <strong>${escapeHtml(reveal.juror)}</strong>
     <span>Start with 1 point and build to 12.</span>
   `;
+  animateSpotlight(animation);
+  hasRenderedSpotlight = true;
+}
+
+function getRevealSnapshot(reveal) {
+  if (!reveal) return null;
+  return {
+    submissionId: reveal.submissionId,
+    finished: Boolean(reveal.finished)
+  };
+}
+
+function getSpotlightAnimation(previousReveal, nextReveal) {
+  if (nextReveal && previousReveal?.submissionId !== nextReveal.submissionId) return "is-starting-reveal";
+  if (previousReveal?.submissionId === nextReveal?.submissionId && !previousReveal.finished && nextReveal.finished) return "is-completing-reveal";
+  if (previousReveal && !nextReveal) return "is-clearing-reveal";
+  return "";
+}
+
+function animateSpotlight(animation) {
+  els.spotlight.classList.remove("is-starting-reveal", "is-completing-reveal", "is-clearing-reveal");
+  if (!animation) return;
+  void els.spotlight.offsetWidth;
+  els.spotlight.classList.add(animation);
 }
 
 function bindTabs() {
@@ -336,7 +370,8 @@ function bindActions() {
   els.joinParty.addEventListener("click", () => switchParty(els.partyIdInput.value));
   els.setHostPassword.addEventListener("click", () => setHostPassword());
   els.deviceBallots.addEventListener("change", () => selectDeviceBallot(els.deviceBallots.value));
-  els.newBallot.addEventListener("click", () => selectDeviceBallot(""));
+  els.newBallot.addEventListener("click", () => selectDeviceBallot("", { clearForm: true }));
+  els.clearRanking.addEventListener("click", clearRankingForm);
   els.inviteLinkOptions.addEventListener("change", () => {
     els.inviteLink.value = els.inviteLinkOptions.value;
     renderInviteQr(els.inviteLinkOptions.value);
@@ -537,14 +572,15 @@ function renderInviteQr(value) {
   const matrix = createQrMatrix(value);
   const canvas = els.inviteQr;
   const context = canvas.getContext("2d");
-  const quiet = 4;
+  const quiet = 5;
   const modules = matrix.length + quiet * 2;
   const scale = Math.floor(canvas.width / modules);
   const offset = Math.floor((canvas.width - modules * scale) / 2);
 
+  context.imageSmoothingEnabled = false;
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "#07111f";
+  context.fillStyle = "#000000";
 
   matrix.forEach((row, y) => {
     row.forEach((isDark, x) => {
@@ -596,12 +632,23 @@ function createQrMatrix(value) {
     blocks.forEach((block) => codewords.push(block.ec[index]));
   }
 
-  const matrix = Array.from({ length: size }, () => Array(size).fill(false));
-  const reserved = Array.from({ length: size }, () => Array(size).fill(false));
-  drawQrFunctionPatterns(matrix, reserved, version);
-  drawQrData(matrix, reserved, codewords, 0);
-  drawQrFormat(matrix, reserved, 0);
-  return matrix;
+  let bestMatrix = null;
+  let bestPenalty = Infinity;
+
+  for (let mask = 0; mask < 8; mask += 1) {
+    const matrix = Array.from({ length: size }, () => Array(size).fill(false));
+    const reserved = Array.from({ length: size }, () => Array(size).fill(false));
+    drawQrFunctionPatterns(matrix, reserved, version);
+    drawQrData(matrix, reserved, codewords, mask);
+    drawQrFormat(matrix, reserved, mask);
+    const penalty = getQrPenalty(matrix);
+    if (penalty < bestPenalty) {
+      bestMatrix = matrix;
+      bestPenalty = penalty;
+    }
+  }
+
+  return bestMatrix;
 }
 
 function appendBits(bits, value, length) {
@@ -627,6 +674,9 @@ function drawQrFunctionPatterns(matrix, reserved, version) {
   for (let i = 0; i < 9; i += 1) {
     reserve(reserved, 8, i);
     reserve(reserved, i, 8);
+  }
+
+  for (let i = 0; i < 8; i += 1) {
     reserve(reserved, size - 1 - i, 8);
     reserve(reserved, 8, size - 1 - i);
   }
@@ -677,7 +727,80 @@ function drawQrData(matrix, reserved, codewords, mask) {
 }
 
 function shouldMask(mask, x, y) {
-  return mask === 0 && (x + y) % 2 === 0;
+  if (mask === 0) return (x + y) % 2 === 0;
+  if (mask === 1) return y % 2 === 0;
+  if (mask === 2) return x % 3 === 0;
+  if (mask === 3) return (x + y) % 3 === 0;
+  if (mask === 4) return (Math.floor(y / 2) + Math.floor(x / 3)) % 2 === 0;
+  if (mask === 5) return ((x * y) % 2) + ((x * y) % 3) === 0;
+  if (mask === 6) return (((x * y) % 2) + ((x * y) % 3)) % 2 === 0;
+  return (((x + y) % 2) + ((x * y) % 3)) % 2 === 0;
+}
+
+function getQrPenalty(matrix) {
+  const size = matrix.length;
+  let penalty = 0;
+
+  for (let y = 0; y < size; y += 1) {
+    penalty += getQrRunPenalty(matrix[y]);
+  }
+
+  for (let x = 0; x < size; x += 1) {
+    penalty += getQrRunPenalty(matrix.map((row) => row[x]));
+  }
+
+  for (let y = 0; y < size - 1; y += 1) {
+    for (let x = 0; x < size - 1; x += 1) {
+      const color = matrix[y][x];
+      if (matrix[y][x + 1] === color && matrix[y + 1][x] === color && matrix[y + 1][x + 1] === color) {
+        penalty += 3;
+      }
+    }
+  }
+
+  const finderLike = [true, false, true, true, true, false, true, false, false, false, false];
+  const finderLikeReverse = [...finderLike].reverse();
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x <= size - finderLike.length; x += 1) {
+      const section = matrix[y].slice(x, x + finderLike.length);
+      if (matchesPattern(section, finderLike) || matchesPattern(section, finderLikeReverse)) penalty += 40;
+    }
+  }
+  for (let x = 0; x < size; x += 1) {
+    const column = matrix.map((row) => row[x]);
+    for (let y = 0; y <= size - finderLike.length; y += 1) {
+      const section = column.slice(y, y + finderLike.length);
+      if (matchesPattern(section, finderLike) || matchesPattern(section, finderLikeReverse)) penalty += 40;
+    }
+  }
+
+  const darkModules = matrix.flat().filter(Boolean).length;
+  const percent = (darkModules * 100) / (size * size);
+  penalty += Math.floor(Math.abs(percent - 50) / 5) * 10;
+  return penalty;
+}
+
+function getQrRunPenalty(line) {
+  let penalty = 0;
+  let runColor = line[0];
+  let runLength = 1;
+
+  for (let index = 1; index <= line.length; index += 1) {
+    if (line[index] === runColor) {
+      runLength += 1;
+      continue;
+    }
+
+    if (runLength >= 5) penalty += 3 + runLength - 5;
+    runColor = line[index];
+    runLength = 1;
+  }
+
+  return penalty;
+}
+
+function matchesPattern(line, pattern) {
+  return pattern.every((value, index) => line[index] === value);
 }
 
 function drawQrFormat(matrix, reserved, mask) {
@@ -768,14 +891,24 @@ function getOwnBallot() {
   return state.submissions.find((submission) => submission.id === session.activeSubmissionId) || null;
 }
 
-function selectDeviceBallot(submissionId) {
+function selectDeviceBallot(submissionId, options = {}) {
   const saved = getDeviceBallots().find((ballot) => ballot.submissionId === submissionId);
   session.activeSubmissionId = saved?.submissionId || "";
   session.ballotToken = saved?.ballotToken || "";
   localStorage.setItem(`activeSubmissionId:${session.partyId}`, session.activeSubmissionId);
   setMessage(els.voteMessage, "");
   renderRankingForm();
+  if (options.clearForm) clearRankingForm({ clearName: true });
   renderDeviceBallots();
+}
+
+function clearRankingForm(options = {}) {
+  if (options.clearName) els.jurorName.value = "";
+  els.rankingList.querySelectorAll("select").forEach((select) => {
+    select.value = "";
+  });
+  disableDuplicateOptions();
+  setMessage(els.voteMessage, "");
 }
 
 function loadActiveDeviceBallot() {

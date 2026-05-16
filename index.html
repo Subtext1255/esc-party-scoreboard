@@ -43,7 +43,10 @@
               Saved ballots on this device
               <select id="device-ballots"></select>
             </label>
-            <button type="button" id="new-ballot">New Ballot</button>
+            <div class="ballot-tool-actions">
+              <button type="button" id="new-ballot">New Ballot</button>
+              <button type="button" id="clear-ranking">Clear Entries</button>
+            </div>
           </div>
           <form id="vote-form">
             <label>
@@ -105,7 +108,7 @@
               <select id="invite-link-options"></select>
             </label>
             <div class="qr-panel">
-              <canvas id="invite-qr" width="232" height="232" aria-label="Invite QR code"></canvas>
+              <canvas id="invite-qr" width="328" height="328" aria-label="Invite QR code"></canvas>
             </div>
             <p class="form-note" id="invite-help"></p>
           </div>
