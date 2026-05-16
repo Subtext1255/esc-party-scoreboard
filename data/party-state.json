@@ -1,0 +1,294 @@
+{
+  "entries": [
+    {
+      "id": "denmark",
+      "country": "🇩🇰 Denmark",
+      "artist": "Søren Torpegaard Lund",
+      "song": "Før Vi Går Hjem",
+      "name": "🇩🇰 Denmark - Søren Torpegaard Lund - \"Før Vi Går Hjem\""
+    },
+    {
+      "id": "germany",
+      "country": "🇩🇪 Germany",
+      "artist": "Sarah Engels",
+      "song": "Fire",
+      "name": "🇩🇪 Germany - Sarah Engels - \"Fire\""
+    },
+    {
+      "id": "israel",
+      "country": "🇮🇱 Israel",
+      "artist": "Noam Bettan",
+      "song": "Michelle",
+      "name": "🇮🇱 Israel - Noam Bettan - \"Michelle\""
+    },
+    {
+      "id": "belgium",
+      "country": "🇧🇪 Belgium",
+      "artist": "Essyla",
+      "song": "Dancing on the Ice",
+      "name": "🇧🇪 Belgium - Essyla - \"Dancing on the Ice\""
+    },
+    {
+      "id": "albania",
+      "country": "🇦🇱 Albania",
+      "artist": "Alis",
+      "song": "Nân",
+      "name": "🇦🇱 Albania - Alis - \"Nân\""
+    },
+    {
+      "id": "greece",
+      "country": "🇬🇷 Greece",
+      "artist": "Akylas",
+      "song": "Ferto",
+      "name": "🇬🇷 Greece - Akylas - \"Ferto\""
+    },
+    {
+      "id": "ukraine",
+      "country": "🇺🇦 Ukraine",
+      "artist": "Leléka",
+      "song": "Ridnym",
+      "name": "🇺🇦 Ukraine - Leléka - \"Ridnym\""
+    },
+    {
+      "id": "australia",
+      "country": "🇦🇺 Australia",
+      "artist": "Delta Goodrem",
+      "song": "Eclipse",
+      "name": "🇦🇺 Australia - Delta Goodrem - \"Eclipse\""
+    },
+    {
+      "id": "serbia",
+      "country": "🇷🇸 Serbia",
+      "artist": "Lavina",
+      "song": "Kraj Mene",
+      "name": "🇷🇸 Serbia - Lavina - \"Kraj Mene\""
+    },
+    {
+      "id": "malta",
+      "country": "🇲🇹 Malta",
+      "artist": "Aidan",
+      "song": "Bella",
+      "name": "🇲🇹 Malta - Aidan - \"Bella\""
+    },
+    {
+      "id": "czechia",
+      "country": "🇨🇿 Czechia",
+      "artist": "Daniel Žižka",
+      "song": "Crossroads",
+      "name": "🇨🇿 Czechia - Daniel Žižka - \"Crossroads\""
+    },
+    {
+      "id": "bulgaria",
+      "country": "🇧🇬 Bulgaria",
+      "artist": "Dara",
+      "song": "Bangaranga",
+      "name": "🇧🇬 Bulgaria - Dara - \"Bangaranga\""
+    },
+    {
+      "id": "croatia",
+      "country": "🇭🇷 Croatia",
+      "artist": "Lelek",
+      "song": "Andromeda",
+      "name": "🇭🇷 Croatia - Lelek - \"Andromeda\""
+    },
+    {
+      "id": "united-kingdom",
+      "country": "🇬🇧 United Kingdom",
+      "artist": "Look Mum No Computer",
+      "song": "Eins, Zwei, Drei",
+      "name": "🇬🇧 United Kingdom - Look Mum No Computer - \"Eins, Zwei, Drei\""
+    },
+    {
+      "id": "france",
+      "country": "🇫🇷 France",
+      "artist": "Monroe",
+      "song": "Regarde !",
+      "name": "🇫🇷 France - Monroe - \"Regarde !\""
+    },
+    {
+      "id": "moldova",
+      "country": "🇲🇩 Moldova",
+      "artist": "Satoshi",
+      "song": "Viva, Moldova",
+      "name": "🇲🇩 Moldova - Satoshi - \"Viva, Moldova\""
+    },
+    {
+      "id": "finland",
+      "country": "🇫🇮 Finland",
+      "artist": "Linda Lampenius & Pete Parkkonen",
+      "song": "Liekinheitin",
+      "name": "🇫🇮 Finland - Linda Lampenius & Pete Parkkonen - \"Liekinheitin\""
+    },
+    {
+      "id": "poland",
+      "country": "🇵🇱 Poland",
+      "artist": "Alicja",
+      "song": "Pray",
+      "name": "🇵🇱 Poland - Alicja - \"Pray\""
+    },
+    {
+      "id": "lithuania",
+      "country": "🇱🇹 Lithuania",
+      "artist": "Lion Ceccah",
+      "song": "Sólo Quiero Más",
+      "name": "🇱🇹 Lithuania - Lion Ceccah - \"Sólo Quiero Más\""
+    },
+    {
+      "id": "sweden",
+      "country": "🇸🇪 Sweden",
+      "artist": "Felicia",
+      "song": "My System",
+      "name": "🇸🇪 Sweden - Felicia - \"My System\""
+    },
+    {
+      "id": "cyprus",
+      "country": "🇨🇾 Cyprus",
+      "artist": "Antigoni",
+      "song": "Jalla",
+      "name": "🇨🇾 Cyprus - Antigoni - \"Jalla\""
+    },
+    {
+      "id": "italy",
+      "country": "🇮🇹 Italy",
+      "artist": "Sal Da Vinci",
+      "song": "Per Sempre Sì",
+      "name": "🇮🇹 Italy - Sal Da Vinci - \"Per Sempre Sì\""
+    },
+    {
+      "id": "norway",
+      "country": "🇳🇴 Norway",
+      "artist": "Jonas Lovv",
+      "song": "Ya Ya Ya",
+      "name": "🇳🇴 Norway - Jonas Lovv - \"Ya Ya Ya\""
+    },
+    {
+      "id": "romania",
+      "country": "🇷🇴 Romania",
+      "artist": "Alexandra Căpitănescu",
+      "song": "Choke Me",
+      "name": "🇷🇴 Romania - Alexandra Căpitănescu - \"Choke Me\""
+    },
+    {
+      "id": "austria",
+      "country": "🇦🇹 Austria",
+      "artist": "Cosmó",
+      "song": "Tanzschein",
+      "name": "🇦🇹 Austria - Cosmó - \"Tanzschein\""
+    }
+  ],
+  "entriesFile": "entries\\2026.tsv",
+  "submissions": [
+    {
+      "id": "59986e7f-0a72-4c88-9018-6d0a4ad124a4",
+      "juror": "Laptop",
+      "ranking": [
+        "serbia",
+        "denmark",
+        "finland",
+        "belgium",
+        "poland",
+        "cyprus",
+        "france",
+        "czechia",
+        "malta",
+        "croatia"
+      ],
+      "status": "applied",
+      "submittedAt": "2026-05-15T23:31:04.256Z"
+    }
+  ],
+  "appliedVotes": [
+    {
+      "id": "b1da606b-8c44-4284-8908-7b4175490551",
+      "submissionId": "59986e7f-0a72-4c88-9018-6d0a4ad124a4",
+      "juror": "Laptop",
+      "entryId": "croatia",
+      "points": 1,
+      "rank": 10,
+      "appliedAt": "2026-05-15T23:31:41.101Z"
+    },
+    {
+      "id": "a2f887c4-4ff2-486a-a388-54f30c5ba87d",
+      "submissionId": "59986e7f-0a72-4c88-9018-6d0a4ad124a4",
+      "juror": "Laptop",
+      "entryId": "malta",
+      "points": 2,
+      "rank": 9,
+      "appliedAt": "2026-05-15T23:31:41.101Z"
+    },
+    {
+      "id": "776a5b9f-330e-47b1-b776-f04f65e7dda9",
+      "submissionId": "59986e7f-0a72-4c88-9018-6d0a4ad124a4",
+      "juror": "Laptop",
+      "entryId": "czechia",
+      "points": 3,
+      "rank": 8,
+      "appliedAt": "2026-05-15T23:31:41.101Z"
+    },
+    {
+      "id": "f817854d-d382-4446-b469-8a01963662af",
+      "submissionId": "59986e7f-0a72-4c88-9018-6d0a4ad124a4",
+      "juror": "Laptop",
+      "entryId": "france",
+      "points": 4,
+      "rank": 7,
+      "appliedAt": "2026-05-15T23:31:41.101Z"
+    },
+    {
+      "id": "69ac5db0-4c9b-486d-aee3-cd3865cacee0",
+      "submissionId": "59986e7f-0a72-4c88-9018-6d0a4ad124a4",
+      "juror": "Laptop",
+      "entryId": "cyprus",
+      "points": 5,
+      "rank": 6,
+      "appliedAt": "2026-05-15T23:31:41.101Z"
+    },
+    {
+      "id": "df93a930-296d-4adb-b8b8-7e8e50b90d54",
+      "submissionId": "59986e7f-0a72-4c88-9018-6d0a4ad124a4",
+      "juror": "Laptop",
+      "entryId": "poland",
+      "points": 6,
+      "rank": 5,
+      "appliedAt": "2026-05-15T23:31:41.101Z"
+    },
+    {
+      "id": "b19048b2-d9a5-4640-841e-fa7cd20e3d5e",
+      "submissionId": "59986e7f-0a72-4c88-9018-6d0a4ad124a4",
+      "juror": "Laptop",
+      "entryId": "belgium",
+      "points": 7,
+      "rank": 4,
+      "appliedAt": "2026-05-15T23:31:41.101Z"
+    },
+    {
+      "id": "51d02a24-efe0-40ec-bdfd-be88a969e5a7",
+      "submissionId": "59986e7f-0a72-4c88-9018-6d0a4ad124a4",
+      "juror": "Laptop",
+      "entryId": "finland",
+      "points": 8,
+      "rank": 3,
+      "appliedAt": "2026-05-15T23:31:43.475Z"
+    },
+    {
+      "id": "5181c220-6103-4ae5-bb41-e44c72d6fd13",
+      "submissionId": "59986e7f-0a72-4c88-9018-6d0a4ad124a4",
+      "juror": "Laptop",
+      "entryId": "denmark",
+      "points": 10,
+      "rank": 2,
+      "appliedAt": "2026-05-15T23:31:45.654Z"
+    },
+    {
+      "id": "2b0e5667-74fc-489a-a3fc-5806d323822f",
+      "submissionId": "59986e7f-0a72-4c88-9018-6d0a4ad124a4",
+      "juror": "Laptop",
+      "entryId": "serbia",
+      "points": 12,
+      "rank": 1,
+      "appliedAt": "2026-05-15T23:31:47.291Z"
+    }
+  ],
+  "currentReveal": null,
+  "createdAt": "2026-05-15T23:05:22.723Z"
+}

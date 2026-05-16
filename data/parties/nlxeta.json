@@ -1,0 +1,88 @@
+{
+  "id": "nlxeta",
+  "name": "Alt Contest",
+  "entries": [
+    {
+      "id": "alpha",
+      "country": "Alpha",
+      "artist": "A",
+      "song": "One",
+      "name": "Alpha - A - \"One\""
+    },
+    {
+      "id": "beta",
+      "country": "Beta",
+      "artist": "B",
+      "song": "Two",
+      "name": "Beta - B - \"Two\""
+    },
+    {
+      "id": "gamma",
+      "country": "Gamma",
+      "artist": "C",
+      "song": "Three",
+      "name": "Gamma - C - \"Three\""
+    },
+    {
+      "id": "delta",
+      "country": "Delta",
+      "artist": "D",
+      "song": "Four",
+      "name": "Delta - D - \"Four\""
+    },
+    {
+      "id": "epsilon",
+      "country": "Epsilon",
+      "artist": "E",
+      "song": "Five",
+      "name": "Epsilon - E - \"Five\""
+    },
+    {
+      "id": "zeta",
+      "country": "Zeta",
+      "artist": "F",
+      "song": "Six",
+      "name": "Zeta - F - \"Six\""
+    },
+    {
+      "id": "eta",
+      "country": "Eta",
+      "artist": "G",
+      "song": "Seven",
+      "name": "Eta - G - \"Seven\""
+    },
+    {
+      "id": "theta",
+      "country": "Theta",
+      "artist": "H",
+      "song": "Eight",
+      "name": "Theta - H - \"Eight\""
+    },
+    {
+      "id": "iota",
+      "country": "Iota",
+      "artist": "I",
+      "song": "Nine",
+      "name": "Iota - I - \"Nine\""
+    },
+    {
+      "id": "kappa",
+      "country": "Kappa",
+      "artist": "J",
+      "song": "Ten",
+      "name": "Kappa - J - \"Ten\""
+    }
+  ],
+  "entriesFile": null,
+  "submissions": [],
+  "appliedVotes": [],
+  "currentReveal": null,
+  "host": {
+    "mode": "device",
+    "tokens": [
+      "0451c4460c9683cf8b1057cd0763336d7b031a972153b5b9f82c72188061b40f"
+    ],
+    "password": null
+  },
+  "createdAt": "2026-05-15T23:40:13.190Z"
+}
