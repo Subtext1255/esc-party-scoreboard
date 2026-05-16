@@ -136,6 +136,8 @@ Guests can reopen the same link on the same device and edit their own ranking un
 
 If the host has clicked `Stop Voting`, guests will see that voting is closed and cannot submit changes.
 
+One device can submit multiple ballots. Use the `Saved ballots on this device` dropdown and `New Ballot` button above the form to switch between or create additional ballots. Each ballot gets its own jury name and ranking.
+
 ## Host Presenting
 
 Use the host computer or another unlocked host device for presentation.
@@ -143,15 +145,15 @@ Use the host computer or another unlocked host device for presentation.
 1. Open the party link.
 2. Go to `Host`.
 3. Click `Claim Host`, or enter the host password if one has been set.
-4. Click `Start Voting` when guests should begin voting. The scoreboard banner will show `START VOTING NOW`.
+4. Voting is open by default. If you need to re-open voting after stopping it, click `Start Voting`. The scoreboard banner will show `START VOTING NOW`.
 5. For a rehearsal or demo, click `Add Practice Ballots` to create five random test juries.
 6. Click `Stop Voting` when submissions should close. The scoreboard banner will show `STOP VOTING NOW`, and guests can no longer submit or edit ballots.
 7. Optional: click `Hide Panel` on the scoreboard screen for presentation mode.
 8. In the jury queue, click `Start` for the ballot you want to present.
-9. Reveal points with the point buttons:
-   - `Reveal 1` reveals the next point value.
-   - `Reveal 7`, `Reveal 8`, `Reveal 10`, and `Reveal 12` can reveal through those point tiers.
-10. When a jury is complete, click `Clear Reveal`.
+9. Reveal points from lowest to highest to build tension:
+   - `Reveal 1` awards 1 point and advances to the next rank.
+   - `Reveal 7`, `Reveal 8`, `Reveal 10`, and `Reveal 12` award all remaining points up through that tier in one click.
+10. When a jury is complete, click `Clear Reveal`. Alternatively, click `Next Jury` to finish the current jury and start the next pending one in a single action.
 11. Repeat for each jury.
 12. After every submitted jury is applied, click `Show Winner`.
 
