@@ -778,10 +778,11 @@ function animateScoreRows(previousPositions) {
     if (!previous) continue;
 
     const current = row.getBoundingClientRect();
+    const deltaX = previous.left - current.left;
     const deltaY = previous.top - current.top;
-    if (Math.abs(deltaY) < 1) continue;
+    if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) continue;
 
-    row.style.transform = `translateY(${deltaY}px)`;
+    row.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
     row.style.transition = "none";
     movedRows.push(row);
   }
