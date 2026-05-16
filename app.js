@@ -3,6 +3,7 @@ const state = {
   submissions: [],
   scoreboard: [],
   currentReveal: null,
+  winnerReveal: null,
   pointsByRank: [],
   host: { isHost: false }
 };
@@ -31,6 +32,7 @@ const els = {
   revealNext: document.querySelector("#reveal-next"),
   revealButtons: [...document.querySelectorAll("[data-reveal-to]")],
   finishReveal: document.querySelector("#finish-reveal"),
+  showWinner: document.querySelector("#show-winner"),
   entriesInput: document.querySelector("#entries-input"),
   entriesMessage: document.querySelector("#entries-message"),
   saveEntries: document.querySelector("#save-entries"),
@@ -90,9 +92,9 @@ async function loadInitialState() {
 }
 
 function updateState(nextState) {
-  const previousReveal = getRevealSnapshot(state.currentReveal);
+  const previousSpotlight = getSpotlightSnapshot(state);
   Object.assign(state, nextState);
-  const spotlightAnimation = hasRenderedSpotlight ? getSpotlightAnimation(previousReveal, getRevealSnapshot(state.currentReveal)) : "";
+  const spotlightAnimation = hasRenderedSpotlight ? getSpotlightAnimation(previousSpotlight, getSpotlightSnapshot(state)) : "";
   renderScoreboard();
   renderRankingForm();
   renderDeviceBallots();
@@ -181,6 +183,7 @@ function renderDeviceBallots() {
 function renderHost() {
   const isHost = Boolean(state.host?.isHost);
   const nextPoint = getNextRevealPoint();
+  const allSubmittedJuriesApplied = state.submissions.length > 0 && state.submissions.every((submission) => submission.status === "applied");
   els.revealNext.textContent = nextPoint ? `Reveal ${nextPoint}` : "Reveal 1";
   els.revealNext.disabled = !isHost || !state.currentReveal || state.currentReveal.finished || !nextPoint;
   els.revealButtons.forEach((button) => {
@@ -188,6 +191,7 @@ function renderHost() {
     button.disabled = !isHost || !state.currentReveal || state.currentReveal.finished || !nextPoint || targetPoints < nextPoint;
   });
   els.finishReveal.disabled = !isHost || !state.currentReveal;
+  els.showWinner.disabled = !isHost || !allSubmittedJuriesApplied || !state.appliedVotes.length;
   els.resetVotes.disabled = !isHost;
   els.saveEntries.disabled = !isHost;
   els.setHostPassword.disabled = !isHost;
@@ -254,6 +258,22 @@ function renderPartySettings() {
 }
 
 function renderSpotlight(animation = "") {
+  els.spotlight.classList.toggle("has-winner", Boolean(state.winnerReveal));
+
+  if (state.winnerReveal) {
+    const winners = state.winnerReveal.entries || [];
+    const winner = winners[0];
+    const isTie = winners.length > 1;
+    els.spotlight.innerHTML = `
+      <span class="spotlight-label">${isTie ? "Final result" : "Winner"}</span>
+      <strong>${isTie ? `Tie: ${winners.map((entry) => `${flagMarkup(entry)}${escapeHtml(entry.countryName || entry.country || entry.name)}`).join(" & ")}` : `${flagMarkup(winner)}${escapeHtml(winner?.countryName || winner?.country || winner?.name || "Winner")}`}</strong>
+      <span>${isTie ? `${winners.length} entries finish` : escapeHtml(entryDetail(winner))} with ${state.winnerReveal.total} points.</span>
+    `;
+    animateSpotlight(animation);
+    hasRenderedSpotlight = true;
+    return;
+  }
+
   const reveal = state.currentReveal;
   if (!reveal) {
     els.spotlight.innerHTML = `
@@ -299,23 +319,37 @@ function renderSpotlight(animation = "") {
   hasRenderedSpotlight = true;
 }
 
-function getRevealSnapshot(reveal) {
-  if (!reveal) return null;
+function getSpotlightSnapshot(nextState) {
+  if (nextState.winnerReveal) {
+    return {
+      type: "winner",
+      shownAt: nextState.winnerReveal.shownAt || "",
+      entryIds: (nextState.winnerReveal.entries || []).map((entry) => entry.id).join(",")
+    };
+  }
+
+  const reveal = nextState.currentReveal;
+  if (!reveal) {
+    return null;
+  }
+
   return {
+    type: "reveal",
     submissionId: reveal.submissionId,
     finished: Boolean(reveal.finished)
   };
 }
 
-function getSpotlightAnimation(previousReveal, nextReveal) {
-  if (nextReveal && previousReveal?.submissionId !== nextReveal.submissionId) return "is-starting-reveal";
-  if (previousReveal?.submissionId === nextReveal?.submissionId && !previousReveal.finished && nextReveal.finished) return "is-completing-reveal";
-  if (previousReveal && !nextReveal) return "is-clearing-reveal";
+function getSpotlightAnimation(previousSpotlight, nextSpotlight) {
+  if (nextSpotlight?.type === "winner" && previousSpotlight?.type !== "winner") return "is-showing-winner";
+  if (nextSpotlight?.type === "reveal" && previousSpotlight?.submissionId !== nextSpotlight.submissionId) return "is-starting-reveal";
+  if (previousSpotlight?.submissionId === nextSpotlight?.submissionId && !previousSpotlight?.finished && nextSpotlight?.finished) return "is-completing-reveal";
+  if (previousSpotlight && !nextSpotlight) return "is-clearing-reveal";
   return "";
 }
 
 function animateSpotlight(animation) {
-  els.spotlight.classList.remove("is-starting-reveal", "is-completing-reveal", "is-clearing-reveal");
+  els.spotlight.classList.remove("is-starting-reveal", "is-completing-reveal", "is-clearing-reveal", "is-showing-winner");
   if (!animation) return;
   void els.spotlight.offsetWidth;
   els.spotlight.classList.add(animation);
@@ -365,6 +399,7 @@ function bindActions() {
   });
   els.revealNext.addEventListener("click", () => revealNextPoint());
   els.finishReveal.addEventListener("click", () => api("/api/reveal/finish", { method: "POST" }));
+  els.showWinner.addEventListener("click", () => showWinner());
   els.claimHost.addEventListener("click", () => claimHost());
   els.createParty.addEventListener("click", () => createParty());
   els.joinParty.addEventListener("click", () => switchParty(els.partyIdInput.value));
@@ -472,6 +507,10 @@ async function revealThrough(targetPoints) {
 
 async function revealNextPoint() {
   await api("/api/reveal/next", { method: "POST" });
+}
+
+async function showWinner() {
+  await api("/api/winner/show", { method: "POST" });
 }
 
 async function removeBallot(submissionId) {

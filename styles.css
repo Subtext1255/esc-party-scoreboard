@@ -196,6 +196,13 @@ h2 {
   white-space: nowrap;
 }
 
+.spotlight.has-winner strong {
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: clamp(1.35rem, 2.7vw, 3rem);
+  white-space: normal;
+}
+
 .spotlight.is-starting-reveal {
   animation: spotlightStart 780ms cubic-bezier(0.2, 0.82, 0.2, 1);
 }
@@ -208,9 +215,21 @@ h2 {
   animation: spotlightClear 720ms ease-out;
 }
 
+.spotlight.has-winner {
+  border-color: rgba(255, 209, 102, 0.72);
+  background:
+    linear-gradient(105deg, rgba(255, 209, 102, 0.26), rgba(245, 85, 166, 0.2), rgba(52, 215, 232, 0.18)),
+    rgba(3, 11, 22, 0.82);
+}
+
+.spotlight.is-showing-winner {
+  animation: winnerReveal 1300ms ease-out;
+}
+
 .spotlight.is-starting-reveal::after,
 .spotlight.is-completing-reveal::after,
-.spotlight.is-clearing-reveal::after {
+.spotlight.is-clearing-reveal::after,
+.spotlight.is-showing-winner::after {
   content: "";
   position: absolute;
   inset: -1px;
@@ -231,6 +250,11 @@ h2 {
 .spotlight.is-clearing-reveal::after {
   background: linear-gradient(100deg, transparent 10%, rgba(174, 185, 200, 0.34) 48%, transparent 86%);
   animation: spotlightFadeSweep 680ms ease-out;
+}
+
+.spotlight.is-showing-winner::after {
+  background: linear-gradient(100deg, transparent 8%, rgba(255, 255, 255, 0.62) 46%, transparent 86%);
+  animation: spotlightSweep 1180ms ease-out;
 }
 
 .scoreboard {
@@ -480,6 +504,26 @@ h2 {
   }
 }
 
+@keyframes winnerReveal {
+  0% {
+    border-color: rgba(255, 209, 102, 0.2);
+    box-shadow: 0 0 0 rgba(255, 209, 102, 0);
+    transform: translateY(0) scale(0.986);
+  }
+
+  42% {
+    border-color: rgba(255, 209, 102, 0.95);
+    box-shadow: 0 0 42px rgba(255, 209, 102, 0.28), 0 0 72px rgba(245, 85, 166, 0.18);
+    transform: translateY(-1px) scale(1.012);
+  }
+
+  100% {
+    border-color: rgba(255, 209, 102, 0.72);
+    box-shadow: none;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @keyframes spotlightSweep {
   0% {
     opacity: 0;
@@ -540,9 +584,11 @@ h2 {
   .spotlight.is-starting-reveal,
   .spotlight.is-completing-reveal,
   .spotlight.is-clearing-reveal,
+  .spotlight.is-showing-winner,
   .spotlight.is-starting-reveal::after,
   .spotlight.is-completing-reveal::after,
-  .spotlight.is-clearing-reveal::after {
+  .spotlight.is-clearing-reveal::after,
+  .spotlight.is-showing-winner::after {
     animation: none;
     transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
   }
