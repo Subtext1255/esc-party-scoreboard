@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Edit Entries - Eurovision Party Scoreboard</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body class="entry-page">
+    <main class="entry-page-shell">
+      <header class="entry-page-header">
+        <div>
+          <p class="eyebrow">Entry manager</p>
+          <h1>Edit Entries</h1>
+        </div>
+        <div class="entry-page-actions">
+          <a class="button-link" id="scoreboard-link" href="/">Back to Scoreboard</a>
+          <div class="connection-pill" id="connection-status">Connecting</div>
+        </div>
+      </header>
+
+      <section class="entry-page-toolbar" aria-label="Entry tools">
+        <div class="settings-group">
+          <span>Party</span>
+          <div class="party-tools">
+            <input id="party-id-input" placeholder="Party code">
+            <button type="button" id="switch-party">Switch Party</button>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <span>Host Access</span>
+          <div class="host-lock compact-host-lock">
+            <div>
+              <strong id="host-status">Host controls locked</strong>
+              <span id="host-status-detail">Claim this browser or enter the host password.</span>
+            </div>
+            <div class="host-lock-actions">
+              <input id="host-password" type="password" autocomplete="current-password" placeholder="Host password">
+              <button type="button" id="claim-host">Claim Host</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <span>Saved Lists</span>
+          <label>
+            Entry list
+            <select id="entry-list-select"></select>
+          </label>
+          <div class="party-tools">
+            <input id="entry-list-name" placeholder="List name, e.g. 2026 or family-final">
+            <button type="button" id="load-entry-list">Load List</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="entry-page-editor" aria-label="Entries">
+        <div class="entry-editor-heading">
+          <span>#</span>
+          <span>Country</span>
+          <span>Artist</span>
+          <span>Song</span>
+          <span></span>
+        </div>
+        <div class="entry-editor entry-editor-large" id="entries-rows"></div>
+        <div class="entry-editor-actions">
+          <button type="button" id="add-entry">Add Entry</button>
+          <button class="primary-action" type="button" id="save-entries">Apply to Party</button>
+          <button type="button" id="save-entry-list">Save List</button>
+        </div>
+        <p class="form-note" id="entries-message"></p>
+      </section>
+    </main>
+
+    <script src="/entries.js"></script>
+  </body>
+</html>

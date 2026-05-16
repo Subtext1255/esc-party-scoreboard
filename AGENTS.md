@@ -9,8 +9,9 @@ The app is intentionally dependency-light:
 - `server.js` is the Node HTTP server, API layer, party persistence, scoring/reveal logic, and static file server.
 - `app.js` is the browser client, UI rendering, host controls, local ballot storage, invite QR generation, and SSE handling.
 - `index.html` defines the app shell and DOM targets used by `app.js`.
+- `entries.html` and `entries.js` define the dedicated full-width entry editor.
 - `styles.css` owns the visual design and responsive/presentation modes.
-- `entries/2026.tsv` is the starter entry template for new parties.
+- `entries/*.tsv` are saved entry lists; `entries/2026.tsv` is the default starter list for new parties.
 - `assets/stage-backdrop.png` is the main visual backdrop.
 - `data/` contains runtime party data and is ignored by git.
 
@@ -40,7 +41,7 @@ Do not commit generated party data from `data/`. The app writes live party state
 data/parties/
 ```
 
-`entries/2026.tsv` is a template only. Existing parties can have their own saved entries after hosts edit them in Settings.
+`entries/2026.tsv` is the default template. Existing parties can have their own saved entries after hosts edit or load entries in the dedicated entry editor page.
 
 The TSV format is:
 

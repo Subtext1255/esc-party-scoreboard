@@ -86,30 +86,27 @@ https://code.visualstudio.com/
 2. Open VS Code.
 3. Choose `File -> Open Folder...`.
 4. Select the project folder.
-5. Open the integrated terminal with `Terminal -> New Terminal`.
-6. In that terminal, run:
-
-```powershell
-npm start
-```
-
-7. Open this address in a browser on the host computer:
+5. Open the Run and Debug view from the left sidebar.
+6. Choose `Start Eurovision Scoreboard` from the run configuration dropdown.
+7. Click the green play button.
+8. Open this address in a browser on the host computer:
 
 ```text
 http://localhost:4173
 ```
 
-If VS Code says `npm` or `node` is not recognized, install Node.js using the instructions above, then close and reopen VS Code.
+If VS Code says `node` is not recognized, install Node.js using the instructions above, then close and reopen VS Code.
 
-Keep VS Code and its terminal open while guests are voting. To stop the app, click the terminal and press `Ctrl+C`.
+Keep VS Code open while guests are voting. To stop the app, use the red stop button in the Run and Debug toolbar.
 
 ## Host A Local Watch Party
 
-1. Start the app on the host computer with `npm start`.
+1. Start the app on the host computer.
 2. Open `http://localhost:4173` on the host computer.
 3. Go to `Host` and claim host access.
 4. Go to `Settings`.
-5. Share the invite link shown there with guests.
+5. Optional: open `Edit Entries` to choose or edit the songs before anyone votes.
+6. Share the invite link or QR code shown in Settings with guests.
 
 Settings also shows a QR code for the selected invite link. Guests can scan it with their phone camera instead of typing the address.
 
@@ -122,6 +119,52 @@ http://192.168.1.23:4173/?party=local
 Guests on other devices cannot use `localhost`, because `localhost` means "this same device." They need the host computer's local IP address.
 
 Some computers have multiple network adapters, so the app may find more than one possible local address. The address for your active Wi-Fi or Ethernet network is usually the one that starts with `192.168.x.x`, `10.x.x.x`, or `172.16.x.x` through `172.31.x.x`. If one link does not work, try the other local addresses.
+
+## Guest Voting
+
+Guests do not need host access.
+
+1. Open the invite link or scan the QR code.
+2. Stay on the `Submit` tab.
+3. Enter a jury name.
+4. Pick exactly 10 different entries in order.
+5. Click `Send Ranking`.
+
+The first choice receives 12 points, then 10, 8, 7, 6, 5, 4, 3, 2, and 1 point.
+
+Guests can reopen the same link on the same device and edit their own ranking until the host starts presenting that ballot. Once the host starts revealing a guest's ballot, that ballot is locked.
+
+## Host Presenting
+
+Use the host computer or another unlocked host device for presentation.
+
+1. Open the party link.
+2. Go to `Host`.
+3. Click `Claim Host`, or enter the host password if one has been set.
+4. Optional: click `Hide Panel` on the scoreboard screen for presentation mode.
+5. In the jury queue, click `Start` for the ballot you want to present.
+6. Reveal points with the point buttons:
+   - `Reveal 1` reveals the next point value.
+   - `Reveal 7`, `Reveal 8`, `Reveal 10`, and `Reveal 12` can reveal through those point tiers.
+7. When a jury is complete, click `Clear Reveal`.
+8. Repeat for each jury.
+9. After every submitted jury is applied, click `Show Winner`.
+
+The scoreboard updates live for everyone connected to the party. Host-only actions are disabled until host access is unlocked.
+
+## Edit Entries
+
+Hosts should edit entries before guests start voting.
+
+1. Go to `Settings`.
+2. Click `Edit Entries`.
+3. Claim host access if the editor is locked.
+4. Choose a saved list, such as `2026 Grand Final` or `2025 Grand Final`, and click `Load List`.
+5. Edit countries, artists, and songs in the separate fields.
+6. Click `Apply to Party` to use the edited entries for the current party.
+7. Click `Save List` if you also want to keep the edited rows as a reusable list.
+
+Applying or loading an entry list resets voting for that party.
 
 ## Find Your Local IP Address
 
@@ -173,7 +216,7 @@ http://YOUR-IP:4173/?party=local
 - Some guest networks block devices from talking to each other. If guests cannot connect, try a non-guest Wi-Fi network or a hotspot.
 - The host computer's firewall may ask whether Node.js can accept incoming connections. Allow it for the local/private network.
 - VPNs can interfere with local connections. Turning off the VPN may help.
-- The host computer must stay awake and keep the terminal running while guests vote.
+- The host computer must stay awake and keep the app running while guests vote.
 
 ## Parties And Entries
 
@@ -190,13 +233,15 @@ You can create additional parties in `Settings`. Each party has its own:
 - scoreboard totals
 - host lock state
 
-The starter lineup is in:
+Saved entry lists live in:
 
 ```text
-entries/2026.tsv
+entries/
 ```
 
-That file is only a template for new parties. After a party edits entries in Settings, those entries are saved with that specific party.
+The default starter lineup is `entries/2026.tsv`. Use the `Edit Entries` link in Settings to open the dedicated entry editor page. It can load another saved list, edit entries with separate country/artist/song fields, apply the edited entries to the current party, or save the edited rows as a reusable list.
+
+After a party edits or loads entries, voting for that party is reset.
 
 ## Host Locking
 

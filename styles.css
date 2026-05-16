@@ -55,7 +55,8 @@ button {
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 
-button:hover {
+button:hover,
+.button-link:hover {
   transform: translateY(-1px);
   border-color: rgba(255, 255, 255, 0.34);
   background: rgba(255, 255, 255, 0.13);
@@ -164,6 +165,22 @@ h2 {
 .connection-pill.is-live {
   color: #042316;
   background: var(--green);
+}
+
+.button-link {
+  display: inline-grid;
+  min-height: 42px;
+  place-items: center;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.86rem;
+  font-weight: 900;
+  text-align: center;
+  text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 
 .spotlight {
@@ -671,6 +688,134 @@ h2 {
   background: var(--line);
 }
 
+.entry-editor {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.entry-edit-row {
+  display: grid;
+  grid-template-columns: 30px minmax(110px, 0.9fr) minmax(110px, 1fr) minmax(110px, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(2, 8, 17, 0.54);
+}
+
+.entry-edit-row label {
+  gap: 5px;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+}
+
+.entry-edit-row input {
+  min-height: 38px;
+  padding: 0 10px;
+}
+
+.entry-edit-rank {
+  display: grid;
+  place-items: center;
+  min-height: 38px;
+  color: var(--gold);
+  font-size: 0.9rem;
+  font-weight: 950;
+}
+
+.entry-editor-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.entry-page {
+  min-height: 100vh;
+  background:
+    linear-gradient(90deg, rgba(2, 6, 14, 0.78), rgba(2, 6, 14, 0.5), rgba(2, 6, 14, 0.82)),
+    url("/assets/stage-backdrop.png") center / cover fixed,
+    #07111f;
+}
+
+.entry-page-shell {
+  display: grid;
+  gap: 16px;
+  width: min(1440px, calc(100% - 28px));
+  margin: 0 auto;
+  padding: 14px 0;
+}
+
+.entry-page-header,
+.entry-page-toolbar,
+.entry-page-editor {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.entry-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px;
+}
+
+.entry-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.entry-page-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(280px, 1fr) minmax(320px, 1.2fr);
+  gap: 14px;
+  padding: 16px;
+}
+
+.entry-page-toolbar .settings-group,
+.entry-page-toolbar .host-lock {
+  margin-bottom: 0;
+}
+
+.compact-host-lock {
+  padding: 10px;
+}
+
+.entry-page-editor {
+  padding: 16px;
+}
+
+.entry-editor-heading {
+  display: grid;
+  grid-template-columns: 44px minmax(180px, 0.9fr) minmax(220px, 1fr) minmax(240px, 1.2fr) 96px;
+  gap: 10px;
+  padding: 0 10px 8px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.entry-editor-large .entry-edit-row {
+  grid-template-columns: 44px minmax(180px, 0.9fr) minmax(220px, 1fr) minmax(240px, 1.2fr) 96px;
+  gap: 10px;
+}
+
+.entry-editor-large .entry-edit-rank,
+.entry-editor-large .entry-edit-row input {
+  min-height: 44px;
+}
+
+.entry-editor-large .entry-edit-row label {
+  text-transform: none;
+}
+
 .qr-panel {
   display: grid;
   place-items: center;
@@ -944,6 +1089,23 @@ textarea:focus {
   .score-row {
     min-height: 54px;
   }
+
+  .entry-page-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .entry-editor-heading {
+    display: none;
+  }
+
+  .entry-editor-large .entry-edit-row {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .entry-editor-large .entry-edit-row label,
+  .entry-editor-large .entry-edit-row button {
+    grid-column: 2;
+  }
 }
 
 @media (max-width: 620px) {
@@ -961,6 +1123,15 @@ textarea:focus {
 
   .stage-actions {
     justify-content: space-between;
+  }
+
+  .entry-page-shell {
+    width: min(100% - 24px, 1440px);
+  }
+
+  .entry-page-header,
+  .entry-page-actions {
+    display: grid;
   }
 
   .score-row {
@@ -988,6 +1159,23 @@ textarea:focus {
   .host-lock-actions,
   .party-tools,
   .ballot-tools {
+    grid-template-columns: 1fr;
+  }
+
+  .tabs {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .entry-edit-row {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .entry-edit-row label,
+  .entry-edit-row button {
+    grid-column: 2;
+  }
+
+  .entry-editor-actions {
     grid-template-columns: 1fr;
   }
 

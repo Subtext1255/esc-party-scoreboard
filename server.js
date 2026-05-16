@@ -8,7 +8,9 @@ const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, "data");
 const PARTY_DIR = path.join(DATA_DIR, "parties");
-const ENTRIES_FILE = path.resolve(process.env.ENTRIES_FILE || path.join(ROOT, "entries", "2026.tsv"));
+const ENTRY_LIST_DIR = path.join(ROOT, "entries");
+const DEFAULT_ENTRY_LIST_ID = "2026";
+const ENTRIES_FILE = path.resolve(process.env.ENTRIES_FILE || path.join(ENTRY_LIST_DIR, `${DEFAULT_ENTRY_LIST_ID}.tsv`));
 const DEFAULT_PARTY_ID = "local";
 const POINTS_BY_RANK = [12, 10, 8, 7, 6, 5, 4, 3, 2, 1];
 const MIME_TYPES = {
@@ -55,6 +57,13 @@ async function handleApi(req, res, url) {
       port: PORT,
       partyId,
       urls: getNetworkUrls(partyId)
+    });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/entry-lists") {
+    return sendJson(res, 200, {
+      defaultListId: DEFAULT_ENTRY_LIST_ID,
+      lists: getEntryLists()
     });
   }
 
@@ -109,15 +118,52 @@ async function handleApi(req, res, url) {
     if (auth.error) return sendJson(res, auth.status, { error: auth.error });
 
     const body = await readJson(req);
-    const entriesText = typeof body.entriesText === "string" ? body.entriesText : "";
-    const entries = parseEntries(entriesText);
+    const entries = parseEntriesPayload(body);
 
     if (entries.length < 10) {
       return sendJson(res, 400, { error: "Add at least 10 entries before voting." });
     }
 
+    let savedListId = "";
+    if (body.saveList) {
+      savedListId = normalizeEntryListId(body.entryListId || body.entryListName);
+      if (!savedListId) {
+        return sendJson(res, 400, { error: "Add a list name before saving the entry list." });
+      }
+      writeEntryListFile(savedListId, entries);
+    }
+
     state.entries = entries;
-    state.entriesFile = null;
+    state.entriesFile = savedListId ? path.relative(ROOT, getEntryListFile(savedListId)) : null;
+    state.submissions = [];
+    state.appliedVotes = [];
+    state.currentReveal = null;
+    state.winnerReveal = null;
+    saveAndBroadcast(state);
+    return sendJson(res, 200, {
+      party: getPublicState(state, getHostToken(req, url)),
+      entryLists: getEntryLists(),
+      savedListId: savedListId || null
+    });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/entry-lists/load") {
+    const auth = requireHost(req, url, state);
+    if (auth.error) return sendJson(res, auth.status, { error: auth.error });
+
+    const body = await readJson(req);
+    const listId = normalizeEntryListId(body.entryListId);
+    if (!listId) {
+      return sendJson(res, 400, { error: "Choose an entry list first." });
+    }
+
+    const entries = readEntryListFile(listId);
+    if (entries.length < 10) {
+      return sendJson(res, 400, { error: "That entry list needs at least 10 entries." });
+    }
+
+    state.entries = entries;
+    state.entriesFile = path.relative(ROOT, getEntryListFile(listId));
     state.submissions = [];
     state.appliedVotes = [];
     state.currentReveal = null;
@@ -381,6 +427,7 @@ function getPublicState(state, hostToken = "") {
     name: state.name,
     entries: state.entries,
     entriesFile: state.entriesFile,
+    entryListId: getEntryListIdFromPath(state.entriesFile),
     submissions: state.submissions.map(({ ballotTokenHash, ...submission }) => submission),
     appliedVotes: state.appliedVotes,
     currentReveal: state.currentReveal,
@@ -686,9 +733,71 @@ function readEntriesFile() {
   return parseEntries(fs.readFileSync(ENTRIES_FILE, "utf8"));
 }
 
-function writeEntriesFile(entries) {
-  fs.mkdirSync(path.dirname(ENTRIES_FILE), { recursive: true });
-  fs.writeFileSync(ENTRIES_FILE, formatEntries(entries));
+function getEntryLists() {
+  try {
+    return fs.readdirSync(ENTRY_LIST_DIR)
+      .filter((file) => file.toLowerCase().endsWith(".tsv"))
+      .map((file) => {
+        const id = normalizeEntryListId(path.basename(file, ".tsv"));
+        return {
+          id,
+          name: getEntryListName(id),
+          path: path.relative(ROOT, path.join(ENTRY_LIST_DIR, file)),
+          isDefault: path.resolve(ENTRY_LIST_DIR, file) === ENTRIES_FILE
+        };
+      })
+      .filter((list) => list.id)
+      .sort((a, b) => b.id.localeCompare(a.id));
+  } catch {
+    return [];
+  }
+}
+
+function readEntryListFile(listId) {
+  return parseEntries(fs.readFileSync(getEntryListFile(listId), "utf8"));
+}
+
+function writeEntryListFile(listId, entries) {
+  fs.mkdirSync(ENTRY_LIST_DIR, { recursive: true });
+  fs.writeFileSync(getEntryListFile(listId), formatEntries(entries));
+}
+
+function getEntryListFile(listId) {
+  return path.join(ENTRY_LIST_DIR, `${normalizeEntryListId(listId)}.tsv`);
+}
+
+function getEntryListName(id) {
+  return /^\d{4}$/.test(id) ? `${id} Grand Final` : id.replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function getEntryListIdFromPath(filePath) {
+  if (!filePath) return "";
+  const parsed = path.parse(filePath);
+  return normalizeEntryListId(parsed.name);
+}
+
+function normalizeEntryListId(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\.tsv$/i, "")
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 48);
+}
+
+function parseEntriesPayload(body) {
+  if (Array.isArray(body.entries)) {
+    return uniqueEntries(body.entries
+      .map((entry) => normalizeEntry({
+        country: entry?.country,
+        artist: entry?.artist,
+        song: entry?.song
+      }))
+      .filter((entry) => entry.country));
+  }
+
+  return parseEntries(typeof body.entriesText === "string" ? body.entriesText : "");
 }
 
 function parseEntries(text) {
@@ -706,6 +815,10 @@ function parseEntries(text) {
     return normalizeEntry({ country, artist, song });
   }).filter((entry) => entry.country);
 
+  return uniqueEntries(entries);
+}
+
+function uniqueEntries(entries) {
   const seen = new Set();
   return entries.filter((entry) => {
     if (seen.has(entry.id)) return false;

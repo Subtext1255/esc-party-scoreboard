@@ -33,9 +33,6 @@ const els = {
   revealButtons: [...document.querySelectorAll("[data-reveal-to]")],
   finishReveal: document.querySelector("#finish-reveal"),
   showWinner: document.querySelector("#show-winner"),
-  entriesInput: document.querySelector("#entries-input"),
-  entriesMessage: document.querySelector("#entries-message"),
-  saveEntries: document.querySelector("#save-entries"),
   resetVotes: document.querySelector("#reset-votes"),
   backgroundButtons: [...document.querySelectorAll("[data-background-mode]")],
   hostStatus: document.querySelector("#host-status"),
@@ -50,6 +47,7 @@ const els = {
   inviteLinkOptions: document.querySelector("#invite-link-options"),
   inviteQr: document.querySelector("#invite-qr"),
   inviteHelp: document.querySelector("#invite-help"),
+  entryEditorLink: document.querySelector("#entry-editor-link"),
   newHostPassword: document.querySelector("#new-host-password"),
   setHostPassword: document.querySelector("#set-host-password"),
   presentationToggle: document.querySelector("#presentation-toggle")
@@ -99,7 +97,6 @@ function updateState(nextState) {
   renderRankingForm();
   renderDeviceBallots();
   renderHost();
-  renderEntries();
   renderSpotlight(spotlightAnimation);
   renderPartySettings();
 }
@@ -193,7 +190,6 @@ function renderHost() {
   els.finishReveal.disabled = !isHost || !state.currentReveal;
   els.showWinner.disabled = !isHost || !allSubmittedJuriesApplied || !state.appliedVotes.length;
   els.resetVotes.disabled = !isHost;
-  els.saveEntries.disabled = !isHost;
   els.setHostPassword.disabled = !isHost;
 
   els.hostStatus.textContent = isHost ? "Host controls unlocked" : "Host controls locked";
@@ -237,11 +233,6 @@ function renderHost() {
   });
 }
 
-function renderEntries() {
-  if (document.activeElement === els.entriesInput) return;
-  els.entriesInput.value = state.entriesText || state.entries.map((entry) => [entry.country || entry.name, entry.artist, entry.song].join("\t")).join("\n");
-}
-
 function renderPartySettings() {
   const partyId = state.id || session.partyId;
   els.partyIdInput.value = partyId;
@@ -255,6 +246,7 @@ function renderPartySettings() {
     : isLocalHost()
       ? "Use this local-network link for guests on the same Wi-Fi or wired network."
       : "Share this link with guests for this party.";
+  els.entryEditorLink.href = `/entries.html?party=${encodeURIComponent(partyId)}`;
 }
 
 function renderSpotlight(animation = "") {
@@ -410,19 +402,6 @@ function bindActions() {
   els.inviteLinkOptions.addEventListener("change", () => {
     els.inviteLink.value = els.inviteLinkOptions.value;
     renderInviteQr(els.inviteLinkOptions.value);
-  });
-
-  els.saveEntries.addEventListener("click", async () => {
-    setMessage(els.entriesMessage, "");
-    try {
-      await api("/api/entries", {
-        method: "POST",
-        body: { entriesText: els.entriesInput.value }
-      });
-      setMessage(els.entriesMessage, "Entries saved to the year file. Voting has been reset for the new running order.");
-    } catch (error) {
-      setMessage(els.entriesMessage, error.message, true);
-    }
   });
 
   els.resetVotes.addEventListener("click", async () => {
