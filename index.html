@@ -56,6 +56,13 @@
             <h1 id="scoreboard-title">Eurovision Scoreboard</h1>
           </div>
           <div class="stage-actions">
+            <div class="stage-share" id="stage-share" aria-label="Join this party">
+              <div>
+                <span>Join code</span>
+                <strong id="stage-party-code">------</strong>
+              </div>
+              <canvas id="stage-invite-qr" width="260" height="260" aria-label="Join QR code"></canvas>
+            </div>
             <button class="panel-toggle" type="button" id="presentation-toggle" aria-pressed="false">Hide Panel</button>
             <div class="connection-pill" id="connection-status">Connecting</div>
           </div>
@@ -110,6 +117,7 @@
             <div class="host-lock-actions">
               <input id="host-password" type="password" autocomplete="current-password" placeholder="Host password">
               <button type="button" id="claim-host">Claim Host</button>
+              <button type="button" id="release-host">Relinquish</button>
             </div>
           </div>
           <div class="host-actions">
@@ -168,6 +176,7 @@
               <input id="new-host-password" type="password" autocomplete="new-password" placeholder="New host password">
               <button type="button" id="set-host-password">Set Password</button>
             </div>
+            <p class="form-note" id="host-password-message"></p>
           </div>
 
           <div class="settings-divider"></div>
@@ -184,6 +193,6 @@
       </aside>
     </main>
 
-    <script src="/app.js"></script>
+    <script src="/app.js?v=20260516-share-qr"></script>
   </body>
 </html>

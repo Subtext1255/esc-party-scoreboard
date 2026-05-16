@@ -4,6 +4,8 @@ const state = {
   host: { isHost: false }
 };
 
+const CODE_PATTERN = /^[a-hj-km-np-z2-9]{6}$/;
+
 const session = {
   partyId: getInitialPartyId(),
   hostToken: "",
@@ -29,7 +31,6 @@ const els = {
   entriesMessage: document.querySelector("#entries-message")
 };
 
-const CODE_PATTERN = /^[a-hj-km-np-z2-9]{6}$/;
 session.hostToken = getStoredHostToken(session.partyId);
 session.joinToken = getStoredJoinToken(session.partyId);
 bindActions();
@@ -154,6 +155,9 @@ async function claimHost() {
     updateState(data.party);
     setMessage("");
   } catch (error) {
+    if (error.code === "host_token_stale") {
+      await loadState();
+    }
     setMessage(error.message, true);
   }
 }
@@ -168,6 +172,9 @@ async function loadSelectedEntryList() {
     updateState(data);
     setMessage("Entry list loaded. Voting has been reset for this party.");
   } catch (error) {
+    if (error.code === "host_token_stale") {
+      await loadState();
+    }
     setMessage(error.message, true);
   }
 }
@@ -212,6 +219,9 @@ async function saveEntries({ saveList }) {
         : "Entries applied. Voting has been reset for this party."
     );
   } catch (error) {
+    if (error.code === "host_token_stale") {
+      await loadState();
+    }
     setMessage(error.message, true);
   }
 }
@@ -242,10 +252,17 @@ async function api(url, options = {}) {
 
   if (!response.ok) {
     if (data.error === "join_password_required") {
+      removeJoinToken(data.partyId || session.partyId);
       window.location.href = `/?party=${encodeURIComponent(data.partyId || session.partyId)}`;
       return new Promise(() => {});
     }
     const error = new Error(data.error || "Request failed.");
+    error.status = response.status;
+    if (data.error === "Host controls are locked. Claim host access first.") {
+      error.code = "host_token_stale";
+      removeHostToken(session.partyId);
+      session.hostToken = "";
+    }
     throw error;
   }
 
@@ -288,9 +305,17 @@ function saveHostToken(partyId, token) {
   if (token) localStorage.setItem(`hostToken:${normalizePartyId(partyId)}`, token);
 }
 
+function removeHostToken(partyId) {
+  if (partyId) localStorage.removeItem(`hostToken:${normalizePartyId(partyId)}`);
+}
+
 function getStoredJoinToken(partyId) {
   if (!partyId) return "";
   return localStorage.getItem(`joinToken:${normalizePartyId(partyId)}`) || "";
+}
+
+function removeJoinToken(partyId) {
+  if (partyId) localStorage.removeItem(`joinToken:${normalizePartyId(partyId)}`);
 }
 
 function setMessage(message, isError = false) {

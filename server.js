@@ -6,7 +6,7 @@ const { createHash, randomBytes, randomUUID, timingSafeEqual } = require("node:c
 
 const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
-const DATA_DIR = path.join(ROOT, "data");
+const DATA_DIR = path.resolve(process.env.DATA_DIR || (process.env.VERCEL ? path.join(os.tmpdir(), "esc-scoreboard-data") : path.join(ROOT, "data")));
 const PARTY_DIR = path.join(DATA_DIR, "parties");
 const ENTRY_LIST_DIR = path.join(ROOT, "entries");
 const DEFAULT_ENTRY_LIST_ID = "2026";
@@ -30,7 +30,7 @@ const MIME_TYPES = {
 
 const clients = new Map();
 
-const server = http.createServer(async (req, res) => {
+async function handleRequest(req, res) {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
@@ -47,11 +47,17 @@ const server = http.createServer(async (req, res) => {
     console.error(error);
     sendJson(res, 500, { error: "Something went wrong on the server." });
   }
-});
+}
 
-server.listen(PORT, () => {
-  console.log(`Eurovision scoreboard running at http://localhost:${PORT}`);
-});
+const server = http.createServer(handleRequest);
+
+if (require.main === module) {
+  server.listen(PORT, () => {
+    console.log(`Eurovision scoreboard running at http://localhost:${PORT}`);
+  });
+}
+
+module.exports = handleRequest;
 
 async function handleApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/network") {
@@ -153,6 +159,16 @@ async function handleApi(req, res, url) {
     state.host.password = hashPassword(password);
     saveAndBroadcast(state);
     return sendJson(res, 200, getPublicState(state, getHostToken(req, url), joinToken));
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/host/release") {
+    const hostToken = getHostToken(req, url);
+    const auth = requireHost(req, url, state);
+    if (auth.error) return sendJson(res, auth.status, { error: auth.error });
+
+    releaseHost(state, hostToken);
+    saveAndBroadcast(state);
+    return sendJson(res, 200, getPublicState(state, "", joinToken));
   }
 
   if (req.method === "POST" && url.pathname === "/api/entries") {
@@ -757,6 +773,18 @@ function claimHost(state, password, currentToken = "") {
   }
 
   return { hostToken };
+}
+
+function releaseHost(state, token) {
+  const host = ensureHost(state);
+  const tokenHash = hashToken(token);
+  host.tokens = host.tokens.filter((knownHash) => !safeEqual(knownHash, tokenHash));
+
+  if (!host.password && !host.tokens.length) {
+    host.mode = "open";
+  } else if (host.password) {
+    host.mode = "password";
+  }
 }
 
 function requireHost(req, url, state) {

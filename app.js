@@ -9,6 +9,8 @@ const state = {
   host: { isHost: false }
 };
 
+const CODE_PATTERN = /^[a-hj-km-np-z2-9]{6}$/;
+
 const session = {
   partyId: getInitialPartyId(),
   hostToken: "",
@@ -45,6 +47,7 @@ const els = {
   hostStatusDetail: document.querySelector("#host-status-detail"),
   hostPassword: document.querySelector("#host-password"),
   claimHost: document.querySelector("#claim-host"),
+  releaseHost: document.querySelector("#release-host"),
   partyName: document.querySelector("#party-name"),
   partyIdInput: document.querySelector("#party-id-input"),
   createParty: document.querySelector("#create-party"),
@@ -53,9 +56,13 @@ const els = {
   inviteLinkOptions: document.querySelector("#invite-link-options"),
   inviteQr: document.querySelector("#invite-qr"),
   inviteHelp: document.querySelector("#invite-help"),
+  stageShare: document.querySelector("#stage-share"),
+  stagePartyCode: document.querySelector("#stage-party-code"),
+  stageInviteQr: document.querySelector("#stage-invite-qr"),
   entryEditorLink: document.querySelector("#entry-editor-link"),
   newHostPassword: document.querySelector("#new-host-password"),
   setHostPassword: document.querySelector("#set-host-password"),
+  hostPasswordMessage: document.querySelector("#host-password-message"),
   presentationToggle: document.querySelector("#presentation-toggle"),
   landingPage: document.querySelector("#landing-page"),
   landingError: document.querySelector("#landing-error"),
@@ -70,7 +77,6 @@ const els = {
 
 let events;
 let hasRenderedSpotlight = false;
-const CODE_PATTERN = /^[a-hj-km-np-z2-9]{6}$/;
 session.hostToken = session.partyId ? getStoredHostToken(session.partyId) : "";
 session.joinToken = session.partyId ? getStoredJoinToken(session.partyId) : "";
 loadActiveDeviceBallot();
@@ -79,9 +85,7 @@ applyPresentationMode(localStorage.getItem("presentationMode") === "true");
 bindTabs();
 bindActions();
 if (session.partyId) {
-  connectEvents();
   loadInitialState();
-  loadNetworkInfo();
 } else {
   renderLanding();
 }
@@ -114,7 +118,13 @@ async function loadInitialState() {
     const data = await api("/api/state");
     updateState(data);
     hideLanding();
+    connectEvents();
+    loadNetworkInfo();
   } catch (error) {
+    if (events) {
+      events.close();
+      events = null;
+    }
     if (error.code === "join_password_required") {
       showJoinPasswordPrompt(error.partyName);
     } else {
@@ -129,13 +139,13 @@ function updateState(nextState) {
   const previousSpotlight = getSpotlightSnapshot(state);
   Object.assign(state, nextState);
   hideLanding();
+  renderPartySettings();
   const spotlightAnimation = hasRenderedSpotlight ? getSpotlightAnimation(previousSpotlight, getSpotlightSnapshot(state)) : "";
   renderScoreboard();
   renderRankingForm();
   renderDeviceBallots();
   renderHost();
   renderSpotlight(spotlightAnimation);
-  renderPartySettings();
 }
 
 function renderScoreboard() {
@@ -206,6 +216,10 @@ function renderDeviceBallots() {
     .filter((ballot) => ballot.submission);
 
   saveDeviceBallots(savedBallots.map(({ submission, ...ballot }) => ballot));
+  const activeStillExists = savedBallots.some((ballot) => ballot.submissionId === session.activeSubmissionId);
+  if (session.activeSubmissionId && !activeStillExists) {
+    clearActiveDeviceBallot();
+  }
 
   els.deviceBallots.innerHTML = [
     `<option value="">New ballot</option>`,
@@ -236,6 +250,7 @@ function renderHost() {
   els.addPracticeBallots.disabled = !isHost || state.entries.length < 10;
   els.resetVotes.disabled = !isHost;
   els.setHostPassword.disabled = !isHost;
+  els.releaseHost.disabled = !isHost;
 
   els.hostStatus.textContent = isHost ? "Host controls unlocked" : "Host controls locked";
   els.hostStatusDetail.textContent = isHost
@@ -280,12 +295,17 @@ function renderHost() {
 
 function renderPartySettings() {
   const partyId = state.id || session.partyId;
-  els.partyIdInput.value = CODE_PATTERN.test(partyId) ? partyId.toUpperCase() : partyId;
+  const shareCode = CODE_PATTERN.test(partyId) ? partyId.toUpperCase() : partyId;
+  els.partyIdInput.value = shareCode;
+  els.stagePartyCode.textContent = shareCode;
   els.partyName.value = state.name || "";
   const inviteLink = getBestInviteLink(partyId);
+  const stageInviteLink = getGuestInviteLink(partyId);
   els.inviteLink.value = inviteLink;
   renderInviteOptions(inviteLink);
   renderInviteQr(inviteLink);
+  renderInviteQr(stageInviteLink, els.stageInviteQr);
+  els.stageShare.classList.toggle("is-unavailable", !stageInviteLink);
   els.inviteHelp.textContent = isLocalHost() && inviteLink.includes("localhost")
     ? "Guests on other devices cannot use localhost. Use your computer's local IP address instead."
     : isLocalHost()
@@ -456,6 +476,9 @@ function bindActions() {
   els.voteForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     setMessage(els.voteMessage, "");
+    if (session.activeSubmissionId && !getOwnBallot()) {
+      clearActiveDeviceBallot();
+    }
 
     try {
       await api("/api/submissions", {
@@ -476,6 +499,7 @@ function bindActions() {
         setMessage(els.voteMessage, "Ranking saved. You can update it until the host starts presenting your ballot.");
       });
     } catch (error) {
+      if (error.code === "host_token_stale") loadInitialState();
       setMessage(els.voteMessage, error.message, true);
     }
   });
@@ -491,6 +515,10 @@ function bindActions() {
   els.closeVoting.addEventListener("click", () => setVotingStatus("closed"));
   els.addPracticeBallots.addEventListener("click", () => addPracticeBallots());
   els.claimHost.addEventListener("click", () => claimHost());
+  els.releaseHost.addEventListener("click", () => releaseHost());
+  els.hostPassword.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") claimHost();
+  });
   els.createParty.addEventListener("click", () => createParty());
   els.joinParty.addEventListener("click", () => switchParty(els.partyIdInput.value));
   if (els.landingCreateParty) {
@@ -563,6 +591,7 @@ async function startNextJury() {
 
 async function claimHost() {
   try {
+    setMessage(els.hostPasswordMessage, "");
     const data = await api("/api/host/claim", {
       method: "POST",
       body: { password: els.hostPassword.value }
@@ -573,6 +602,10 @@ async function claimHost() {
     connectEvents();
     updateState(data.party);
   } catch (error) {
+    if (error.code === "host_token_stale") {
+      connectEvents();
+      loadInitialState();
+    }
     els.hostStatusDetail.textContent = error.message;
   }
 }
@@ -591,11 +624,38 @@ async function createParty(joinPassword = "", name = els.partyName.value || "Eur
 }
 
 async function setHostPassword() {
-  await api("/api/host/password", {
-    method: "POST",
-    body: { password: els.newHostPassword.value }
-  });
-  els.newHostPassword.value = "";
+  try {
+    const data = await api("/api/host/password", {
+      method: "POST",
+      body: { password: els.newHostPassword.value }
+    });
+    els.newHostPassword.value = "";
+    updateState(data);
+    setMessage(els.hostPasswordMessage, "Host password set. Other devices can now unlock host controls with it.");
+  } catch (error) {
+    if (error.code === "host_token_stale") {
+      connectEvents();
+      loadInitialState();
+    }
+    setMessage(els.hostPasswordMessage, error.message, true);
+  }
+}
+
+async function releaseHost() {
+  try {
+    const data = await api("/api/host/release", { method: "POST" });
+    removeHostToken(session.partyId);
+    session.hostToken = "";
+    connectEvents();
+    updateState(data);
+    setMessage(els.hostPasswordMessage, "This browser has relinquished host control.");
+  } catch (error) {
+    if (error.code === "host_token_stale") {
+      connectEvents();
+      loadInitialState();
+    }
+    els.hostStatusDetail.textContent = error.message;
+  }
 }
 
 async function joinParty(code, password = "") {
@@ -630,10 +690,10 @@ function switchParty(partyId, hostToken = getStoredHostToken(partyId), joinToken
   const url = new URL(window.location.href);
   url.searchParams.set("party", session.partyId);
   window.history.replaceState({}, "", url);
-  connectEvents();
-  loadNetworkInfo();
   if (knownState) {
     updateState(knownState);
+    connectEvents();
+    loadNetworkInfo();
   } else {
     loadInitialState();
   }
@@ -716,9 +776,16 @@ async function api(url, options = {}) {
 
   if (!response.ok) {
     const error = new Error(data.error || "Request failed.");
+    error.status = response.status;
     if (data.error === "join_password_required") {
       error.code = "join_password_required";
       error.partyName = data.partyName;
+      removeJoinToken(data.partyId || session.partyId);
+      session.joinToken = "";
+    } else if (data.error === "Host controls are locked. Claim host access first.") {
+      error.code = "host_token_stale";
+      removeHostToken(session.partyId);
+      session.hostToken = "";
     }
     throw error;
   }
@@ -766,6 +833,10 @@ function saveHostToken(partyId, token) {
   if (token) localStorage.setItem(`hostToken:${normalizePartyId(partyId)}`, token);
 }
 
+function removeHostToken(partyId) {
+  if (partyId) localStorage.removeItem(`hostToken:${normalizePartyId(partyId)}`);
+}
+
 function getStoredJoinToken(partyId) {
   if (!partyId) return "";
   return localStorage.getItem(`joinToken:${normalizePartyId(partyId)}`) || "";
@@ -775,10 +846,28 @@ function saveJoinToken(partyId, token) {
   if (token && partyId) localStorage.setItem(`joinToken:${normalizePartyId(partyId)}`, token);
 }
 
+function removeJoinToken(partyId) {
+  if (partyId) localStorage.removeItem(`joinToken:${normalizePartyId(partyId)}`);
+}
+
 function getBestInviteLink(partyId) {
   const fallback = `${window.location.origin}${window.location.pathname}?party=${encodeURIComponent(partyId)}`;
-  if (!isLocalHost()) return fallback;
-  return session.networkUrls.find((url) => !url.includes("localhost")) || fallback;
+  return getGuestInviteLink(partyId) || fallback;
+}
+
+function getGuestInviteLink(partyId) {
+  const fallback = `${window.location.origin}${window.location.pathname}?party=${encodeURIComponent(partyId)}`;
+  const urls = [fallback, ...session.networkUrls];
+  return urls.find(isGuestSafeInviteUrl) || "";
+}
+
+function isGuestSafeInviteUrl(value) {
+  try {
+    const { hostname } = new URL(value);
+    return !["localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"].includes(hostname.toLowerCase());
+  } catch {
+    return false;
+  }
 }
 
 function renderInviteOptions(selectedUrl) {
@@ -791,9 +880,14 @@ function renderInviteOptions(selectedUrl) {
   els.inviteLinkOptions.value = selectedUrl;
 }
 
-function renderInviteQr(value) {
+function renderInviteQr(value, canvas = els.inviteQr) {
+  if (!value) {
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    return;
+  }
   const matrix = createQrMatrix(value);
-  const canvas = els.inviteQr;
   const context = canvas.getContext("2d");
   const quiet = 5;
   const modules = matrix.length + quiet * 2;
@@ -1188,6 +1282,12 @@ function saveDeviceBallot(nextBallot) {
   ballots.push(nextBallot);
   saveDeviceBallots(ballots);
   localStorage.setItem(`activeSubmissionId:${session.partyId}`, nextBallot.submissionId);
+}
+
+function clearActiveDeviceBallot() {
+  session.activeSubmissionId = "";
+  session.ballotToken = "";
+  localStorage.removeItem(`activeSubmissionId:${session.partyId}`);
 }
 
 function setMessage(element, message, isError = false) {

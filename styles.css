@@ -190,6 +190,48 @@ body.is-presentation .control-deck {
   gap: 8px;
 }
 
+.stage-share {
+  display: grid;
+  grid-template-columns: minmax(110px, auto) 118px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(7, 18, 35, 0.82);
+}
+
+.stage-share span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.stage-share strong {
+  display: block;
+  color: var(--gold);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 1.35rem;
+  letter-spacing: 0.12em;
+}
+
+.stage-share canvas {
+  display: block;
+  width: 118px;
+  height: 118px;
+  padding: 5px;
+  border-radius: 6px;
+  background: #ffffff;
+  image-rendering: pixelated;
+}
+
+.stage-share.is-unavailable canvas {
+  opacity: 0.35;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--gold);
@@ -994,6 +1036,10 @@ h2 {
   gap: 8px;
 }
 
+.host-lock-actions {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
 .host-lock-actions button,
 .party-tools button {
   min-width: 112px;
@@ -1279,7 +1325,21 @@ textarea:focus {
   }
 
   .stage-actions {
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .stage-share {
+    grid-template-columns: minmax(0, 1fr) 92px;
+  }
+
+  .stage-share canvas {
+    width: 92px;
+    height: 92px;
+  }
+
+  .stage-share strong {
+    font-size: 1.1rem;
   }
 
   .entry-page-shell {
