@@ -100,7 +100,7 @@ function renderScoreboard() {
       <article class="score-row ${entry.lastPoints ? `has-points point-${entry.pointTier}` : ""}" data-entry-id="${entry.id}">
         <div class="rank">${index + 1}</div>
         <div>
-          <div class="entry-name">${escapeHtml(entry.country || entry.name)}</div>
+          <div class="entry-name">${flagMarkup(entry)}<span>${escapeHtml(entry.countryName || entry.country || entry.name)}</span></div>
           <div class="entry-meta">${escapeHtml(entry.song || "")}${entry.song && entry.artist ? " / " : ""}${escapeHtml(entry.artist || "")}</div>
           ${entry.lastPoints ? `<div class="last-points">+${entry.lastPoints} from ${escapeHtml(state.currentReveal?.juror || "")}</div>` : ""}
         </div>
@@ -249,9 +249,9 @@ function renderSpotlight() {
       return;
     }
 
-    els.spotlight.innerHTML = `
-      <span class="spotlight-label">${escapeHtml(reveal.juror)} awards</span>
-      <strong>${highestAward.points} points to ${escapeHtml(entry?.country || "Unknown entry")}</strong>
+      els.spotlight.innerHTML = `
+        <span class="spotlight-label">${escapeHtml(reveal.juror)} awards</span>
+      <strong>${highestAward.points} points to ${flagMarkup(entry)}${escapeHtml(entry?.countryName || entry?.country || "Unknown entry")}</strong>
       <span>${escapeHtml(entryDetail(entry))}${reveal.finished ? " Jury complete." : ""}</span>
     `;
     return;
@@ -811,12 +811,25 @@ function getNextRevealPoint() {
 }
 
 function entryLabel(entry) {
-  return [entry.country || entry.name, entry.artist, entry.song].filter(Boolean).join(" - ");
+  const country = [entry.flagCode && `[${entry.flagCode}]`, entry.countryName || entry.country || entry.name].filter(Boolean).join(" ");
+  return [country, entry.artist, entry.song].filter(Boolean).join(" - ");
 }
 
 function entryDetail(entry) {
   if (!entry) return "";
   return [entry.song && `"${entry.song}"`, entry.artist].filter(Boolean).join(" / ");
+}
+
+function flagMarkup(entry) {
+  if (!entry?.flagCode) return "";
+  const code = entry.flagCode.toLowerCase();
+  const label = escapeHtml(entry.countryName || entry.flagCode);
+  const fallback = escapeHtml(entry.flagCode);
+  return `
+    <span class="flag-wrap" aria-label="${label}">
+      <img class="flag-icon" alt="" src="https://cdnjs.cloudflare.com/ajax/libs/flag-icons/7.5.0/flags/4x3/${code}.svg" loading="lazy" onerror="this.hidden=true; this.nextElementSibling.hidden=false;">
+      <span class="flag-fallback" hidden>${fallback}</span>
+    </span>`;
 }
 
 function applyBackgroundMode(mode) {

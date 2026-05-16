@@ -233,11 +233,71 @@ h2 {
 }
 
 .entry-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   overflow: hidden;
   font-size: 0.9rem;
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.entry-name > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flag-wrap {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 30px;
+  height: 22px;
+}
+
+.flag-icon,
+.flag-fallback {
+  width: 30px;
+  height: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 4px;
+}
+
+.flag-icon {
+  display: block;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.flag-fallback {
+  place-items: center;
+  color: #07111f;
+  background: linear-gradient(135deg, var(--gold), var(--cyan));
+  font-size: 0.66rem;
+  font-weight: 950;
+}
+
+.flag-fallback:not([hidden]) {
+  display: grid;
+}
+
+.spotlight .flag-wrap {
+  position: relative;
+  top: -0.08em;
+  margin-right: 8px;
+  width: 38px;
+  height: 28px;
+}
+
+.spotlight .flag-icon,
+.spotlight .flag-fallback {
+  width: 38px;
+  height: 28px;
+}
+
+.spotlight .flag-fallback {
+  font-size: 0.76rem;
 }
 
 .entry-meta {

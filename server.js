@@ -540,7 +540,9 @@ function loadPartyState(partyId) {
     const savedState = JSON.parse(fs.readFileSync(getPartyFile(id), "utf8"));
     const state = {
       ...savedState,
-      entries: Array.isArray(savedState.entries) && savedState.entries.length ? savedState.entries : readEntriesFile()
+      entries: Array.isArray(savedState.entries) && savedState.entries.length
+        ? savedState.entries.map(normalizeEntry)
+        : readEntriesFile()
     };
     state.id = id;
     state.host = state.host || { mode: "open", tokens: [], password: null };
@@ -677,15 +679,37 @@ function normalizeEntry(entry) {
   const country = String(entry.country || entry.name || "").trim();
   const artist = String(entry.artist || "").trim();
   const song = String(entry.song || "").trim();
+  const flag = parseFlagPrefix(country);
+  const countryName = flag.countryName || country;
   const name = [country, artist && `- ${artist}`, song && `- "${song}"`].filter(Boolean).join(" ");
 
   return {
     id: slug(country),
     country,
+    countryName,
+    flagCode: flag.flagCode,
     artist,
     song,
     name
   };
+}
+
+function parseFlagPrefix(country) {
+  const chars = [...country];
+  const first = chars[0]?.codePointAt(0);
+  const second = chars[1]?.codePointAt(0);
+  const regionalA = 0x1f1e6;
+  const regionalZ = 0x1f1ff;
+
+  if (first >= regionalA && first <= regionalZ && second >= regionalA && second <= regionalZ) {
+    const flagCode = String.fromCharCode(65 + first - regionalA, 65 + second - regionalA);
+    return {
+      flagCode,
+      countryName: chars.slice(2).join("").trim()
+    };
+  }
+
+  return { flagCode: "", countryName: country };
 }
 
 function readJson(req) {
