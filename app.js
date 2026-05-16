@@ -42,6 +42,7 @@ const els = {
   joinParty: document.querySelector("#join-party"),
   inviteLink: document.querySelector("#invite-link"),
   inviteLinkOptions: document.querySelector("#invite-link-options"),
+  inviteQr: document.querySelector("#invite-qr"),
   inviteHelp: document.querySelector("#invite-help"),
   newHostPassword: document.querySelector("#new-host-password"),
   setHostPassword: document.querySelector("#set-host-password")
@@ -215,6 +216,7 @@ function renderPartySettings() {
   const inviteLink = getBestInviteLink(partyId);
   els.inviteLink.value = inviteLink;
   renderInviteOptions(inviteLink);
+  renderInviteQr(inviteLink);
   els.inviteHelp.textContent = isLocalHost() && inviteLink.includes("localhost")
     ? "Guests on other devices cannot use localhost. Use your computer's local IP address instead."
     : isLocalHost()
@@ -308,6 +310,7 @@ function bindActions() {
   els.setHostPassword.addEventListener("click", () => setHostPassword());
   els.inviteLinkOptions.addEventListener("change", () => {
     els.inviteLink.value = els.inviteLinkOptions.value;
+    renderInviteQr(els.inviteLinkOptions.value);
   });
 
   els.saveEntries.addEventListener("click", async () => {
@@ -503,6 +506,232 @@ function renderInviteOptions(selectedUrl) {
     .map((url) => `<option value="${escapeHtml(url)}">${escapeHtml(url)}</option>`)
     .join("");
   els.inviteLinkOptions.value = selectedUrl;
+}
+
+function renderInviteQr(value) {
+  const matrix = createQrMatrix(value);
+  const canvas = els.inviteQr;
+  const context = canvas.getContext("2d");
+  const quiet = 4;
+  const modules = matrix.length + quiet * 2;
+  const scale = Math.floor(canvas.width / modules);
+  const offset = Math.floor((canvas.width - modules * scale) / 2);
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#07111f";
+
+  matrix.forEach((row, y) => {
+    row.forEach((isDark, x) => {
+      if (!isDark) return;
+      context.fillRect(offset + (x + quiet) * scale, offset + (y + quiet) * scale, scale, scale);
+    });
+  });
+}
+
+function createQrMatrix(value) {
+  const version = 6;
+  const size = version * 4 + 17;
+  const dataCodewords = 136;
+  const ecPerBlock = 18;
+  const blockCount = 2;
+  const bytes = [...new TextEncoder().encode(value)];
+
+  if (bytes.length > 120) {
+    throw new Error("Invite link is too long for the built-in QR code.");
+  }
+
+  const bits = [0, 1, 0, 0];
+  appendBits(bits, bytes.length, 8);
+  bytes.forEach((byte) => appendBits(bits, byte, 8));
+  const capacity = dataCodewords * 8;
+  appendBits(bits, 0, Math.min(4, capacity - bits.length));
+  while (bits.length % 8) bits.push(0);
+
+  const data = [];
+  for (let index = 0; index < bits.length; index += 8) {
+    data.push(parseInt(bits.slice(index, index + 8).join(""), 2));
+  }
+  for (let pad = 0; data.length < dataCodewords; pad ^= 1) {
+    data.push(pad ? 0x11 : 0xec);
+  }
+
+  const blocks = [];
+  const blockSize = dataCodewords / blockCount;
+  for (let block = 0; block < blockCount; block += 1) {
+    const chunk = data.slice(block * blockSize, (block + 1) * blockSize);
+    blocks.push({ data: chunk, ec: reedSolomonRemainder(chunk, ecPerBlock) });
+  }
+
+  const codewords = [];
+  for (let index = 0; index < blockSize; index += 1) {
+    blocks.forEach((block) => codewords.push(block.data[index]));
+  }
+  for (let index = 0; index < ecPerBlock; index += 1) {
+    blocks.forEach((block) => codewords.push(block.ec[index]));
+  }
+
+  const matrix = Array.from({ length: size }, () => Array(size).fill(false));
+  const reserved = Array.from({ length: size }, () => Array(size).fill(false));
+  drawQrFunctionPatterns(matrix, reserved, version);
+  drawQrData(matrix, reserved, codewords, 0);
+  drawQrFormat(matrix, reserved, 0);
+  return matrix;
+}
+
+function appendBits(bits, value, length) {
+  for (let index = length - 1; index >= 0; index -= 1) {
+    bits.push((value >>> index) & 1);
+  }
+}
+
+function drawQrFunctionPatterns(matrix, reserved, version) {
+  const size = matrix.length;
+  drawFinder(matrix, reserved, 0, 0);
+  drawFinder(matrix, reserved, size - 7, 0);
+  drawFinder(matrix, reserved, 0, size - 7);
+
+  for (let i = 8; i < size - 8; i += 1) {
+    setModule(matrix, reserved, 6, i, i % 2 === 0);
+    setModule(matrix, reserved, i, 6, i % 2 === 0);
+  }
+
+  drawAlignment(matrix, reserved, 34, 34);
+  setModule(matrix, reserved, 8, version * 4 + 9, true);
+
+  for (let i = 0; i < 9; i += 1) {
+    reserve(reserved, 8, i);
+    reserve(reserved, i, 8);
+    reserve(reserved, size - 1 - i, 8);
+    reserve(reserved, 8, size - 1 - i);
+  }
+}
+
+function drawFinder(matrix, reserved, x, y) {
+  for (let dy = -1; dy <= 7; dy += 1) {
+    for (let dx = -1; dx <= 7; dx += 1) {
+      const xx = x + dx;
+      const yy = y + dy;
+      if (!matrix[yy] || matrix[yy][xx] === undefined) continue;
+      const isDark = dx >= 0 && dx <= 6 && dy >= 0 && dy <= 6 && (dx === 0 || dx === 6 || dy === 0 || dy === 6 || (dx >= 2 && dx <= 4 && dy >= 2 && dy <= 4));
+      setModule(matrix, reserved, xx, yy, isDark);
+    }
+  }
+}
+
+function drawAlignment(matrix, reserved, cx, cy) {
+  for (let dy = -2; dy <= 2; dy += 1) {
+    for (let dx = -2; dx <= 2; dx += 1) {
+      const isDark = Math.max(Math.abs(dx), Math.abs(dy)) !== 1;
+      setModule(matrix, reserved, cx + dx, cy + dy, isDark);
+    }
+  }
+}
+
+function drawQrData(matrix, reserved, codewords, mask) {
+  const bits = codewords.flatMap((byte) => Array.from({ length: 8 }, (_, i) => (byte >>> (7 - i)) & 1));
+  const size = matrix.length;
+  let bitIndex = 0;
+  let upward = true;
+
+  for (let right = size - 1; right >= 1; right -= 2) {
+    if (right === 6) right -= 1;
+    for (let vert = 0; vert < size; vert += 1) {
+      const y = upward ? size - 1 - vert : vert;
+      for (let dx = 0; dx < 2; dx += 1) {
+        const x = right - dx;
+        if (reserved[y][x]) continue;
+        const bit = bitIndex < bits.length ? bits[bitIndex] : 0;
+        const masked = bit ^ Number(shouldMask(mask, x, y));
+        matrix[y][x] = Boolean(masked);
+        bitIndex += 1;
+      }
+    }
+    upward = !upward;
+  }
+}
+
+function shouldMask(mask, x, y) {
+  return mask === 0 && (x + y) % 2 === 0;
+}
+
+function drawQrFormat(matrix, reserved, mask) {
+  const size = matrix.length;
+  const format = getFormatBits(1, mask);
+  const bit = (index) => Boolean((format >>> index) & 1);
+
+  for (let i = 0; i <= 5; i += 1) setModule(matrix, reserved, 8, i, bit(i));
+  setModule(matrix, reserved, 8, 7, bit(6));
+  setModule(matrix, reserved, 8, 8, bit(7));
+  setModule(matrix, reserved, 7, 8, bit(8));
+  for (let i = 9; i < 15; i += 1) setModule(matrix, reserved, 14 - i, 8, bit(i));
+
+  for (let i = 0; i < 8; i += 1) setModule(matrix, reserved, size - 1 - i, 8, bit(i));
+  for (let i = 8; i < 15; i += 1) setModule(matrix, reserved, 8, size - 15 + i, bit(i));
+}
+
+function getFormatBits(errorLevelBits, mask) {
+  let data = (errorLevelBits << 3) | mask;
+  let remainder = data << 10;
+  for (let i = 14; i >= 10; i -= 1) {
+    if ((remainder >>> i) & 1) remainder ^= 0x537 << (i - 10);
+  }
+  return ((data << 10) | remainder) ^ 0x5412;
+}
+
+function setModule(matrix, reserved, x, y, isDark) {
+  matrix[y][x] = isDark;
+  reserve(reserved, x, y);
+}
+
+function reserve(reserved, x, y) {
+  if (reserved[y] && reserved[y][x] !== undefined) reserved[y][x] = true;
+}
+
+function reedSolomonRemainder(data, degree) {
+  const generator = reedSolomonGenerator(degree);
+  const result = Array(degree).fill(0);
+
+  for (const byte of data) {
+    const factor = byte ^ result.shift();
+    result.push(0);
+    generator.forEach((coefficient, index) => {
+      result[index] ^= gfMultiply(coefficient, factor);
+    });
+  }
+
+  return result;
+}
+
+function reedSolomonGenerator(degree) {
+  let result = [1];
+  for (let i = 0; i < degree; i += 1) {
+    const next = Array(result.length + 1).fill(0);
+    result.forEach((coefficient, index) => {
+      next[index] ^= gfMultiply(coefficient, 1);
+      next[index + 1] ^= gfMultiply(coefficient, gfPow(2, i));
+    });
+    result = next;
+  }
+  return result.slice(1);
+}
+
+function gfPow(value, power) {
+  let result = 1;
+  for (let i = 0; i < power; i += 1) result = gfMultiply(result, value);
+  return result;
+}
+
+function gfMultiply(left, right) {
+  let result = 0;
+  for (let i = 0; i < 8; i += 1) {
+    if (right & 1) result ^= left;
+    const carry = left & 0x80;
+    left = (left << 1) & 0xff;
+    if (carry) left ^= 0x1d;
+    right >>>= 1;
+  }
+  return result;
 }
 
 function isLocalHost() {

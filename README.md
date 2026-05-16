@@ -7,6 +7,56 @@ A live Eurovision-style party scoreboard for collecting juror rankings, revealin
 - Node.js 20 or newer
 - Everyone using the locally hosted mode must be on the same local network as the host computer.
 
+## Install Node.js
+
+If `npm start` does not work, install Node.js first.
+
+### Windows
+
+Option 1: Download the LTS installer from:
+
+```text
+https://nodejs.org/
+```
+
+Run the installer, accept the defaults, then close and reopen PowerShell.
+
+Option 2: If you use `winget`, open PowerShell and run:
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+```
+
+Check that Node and npm are installed:
+
+```powershell
+node --version
+npm --version
+```
+
+### macOS
+
+Option 1: Download the LTS installer from:
+
+```text
+https://nodejs.org/
+```
+
+Run the installer, then close and reopen Terminal.
+
+Option 2: If you use Homebrew, run:
+
+```bash
+brew install node
+```
+
+Check that Node and npm are installed:
+
+```bash
+node --version
+npm --version
+```
+
 ## Run Locally
 
 From this project folder:
@@ -30,6 +80,8 @@ The app stores party data in `data/parties/`. That folder is ignored by git.
 3. Go to `Host` and claim host access.
 4. Go to `Settings`.
 5. Share the invite link shown there with guests.
+
+Settings also shows a QR code for the selected invite link. Guests can scan it with their phone camera instead of typing the address.
 
 If the app is opened on `localhost`, the Settings invite field tries to show a local-network IP link such as:
 

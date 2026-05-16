@@ -393,6 +393,21 @@ h2 {
   background: var(--line);
 }
 
+.qr-panel {
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.qr-panel canvas {
+  display: block;
+  width: min(232px, 100%);
+  height: auto;
+}
+
 .host-lock {
   display: grid;
   gap: 12px;
