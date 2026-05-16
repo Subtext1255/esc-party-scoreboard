@@ -73,6 +73,36 @@ http://localhost:4173
 
 The app stores party data in `data/parties/`. That folder is ignored by git.
 
+## Run From VS Code
+
+This is often the easiest option if you are not comfortable using a standalone terminal.
+
+1. Install Visual Studio Code from:
+
+```text
+https://code.visualstudio.com/
+```
+
+2. Open VS Code.
+3. Choose `File -> Open Folder...`.
+4. Select the project folder.
+5. Open the integrated terminal with `Terminal -> New Terminal`.
+6. In that terminal, run:
+
+```powershell
+npm start
+```
+
+7. Open this address in a browser on the host computer:
+
+```text
+http://localhost:4173
+```
+
+If VS Code says `npm` or `node` is not recognized, install Node.js using the instructions above, then close and reopen VS Code.
+
+Keep VS Code and its terminal open while guests are voting. To stop the app, click the terminal and press `Ctrl+C`.
+
 ## Host A Local Watch Party
 
 1. Start the app on the host computer with `npm start`.
