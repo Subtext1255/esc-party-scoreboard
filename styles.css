@@ -75,6 +75,14 @@ button:disabled {
   padding: 14px;
 }
 
+body.is-presentation .app-shell {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+body.is-presentation .control-deck {
+  display: none;
+}
+
 .score-stage,
 .control-deck {
   border: 1px solid var(--line);
@@ -97,6 +105,13 @@ button:disabled {
   justify-content: space-between;
   gap: 18px;
   margin-bottom: 10px;
+}
+
+.stage-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
 }
 
 .eyebrow {
@@ -137,6 +152,15 @@ h2 {
   text-transform: uppercase;
 }
 
+.panel-toggle {
+  min-height: 36px;
+  padding: 0 12px;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .connection-pill.is-live {
   color: #042316;
   background: var(--green);
@@ -161,7 +185,13 @@ h2 {
 }
 
 .spotlight strong {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
   font-size: clamp(1.05rem, 1.7vw, 1.8rem);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .scoreboard {
@@ -178,7 +208,7 @@ h2 {
 .score-row {
   position: relative;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 56px;
+  grid-template-columns: 34px minmax(0, 1fr) 88px;
   align-items: center;
   min-height: 0;
   padding: 4px 8px;
@@ -192,23 +222,18 @@ h2 {
 .score-row.has-points {
   --award-rgb: 255, 209, 102;
   border-color: rgba(var(--award-rgb), 0.9);
-  background: linear-gradient(90deg, rgba(var(--award-rgb), 0.2), rgba(3, 11, 22, 0.82));
+  background:
+    linear-gradient(92deg, rgba(var(--award-rgb), 0.34), rgba(var(--award-rgb), 0.12) 46%, rgba(3, 11, 22, 0.84) 100%),
+    rgba(3, 11, 22, 0.78);
   box-shadow: 0 0 0 1px rgba(var(--award-rgb), 0.55), 0 0 28px rgba(var(--award-rgb), 0.32);
   animation: pointPulse 1400ms ease-out;
   z-index: 2;
 }
 
-.score-row.point-special-8 {
-  --award-rgb: 52, 215, 232;
-}
-
-.score-row.point-special-10 {
-  --award-rgb: 245, 85, 166;
-}
-
-.score-row.point-special-12 {
-  --award-rgb: 255, 209, 102;
-  background: linear-gradient(90deg, rgba(255, 209, 102, 0.34), rgba(245, 85, 166, 0.16), rgba(3, 11, 22, 0.82));
+.score-row.point-value-12 {
+  background:
+    linear-gradient(92deg, rgba(var(--award-rgb), 0.46), rgba(245, 85, 166, 0.18) 48%, rgba(3, 11, 22, 0.84) 100%),
+    rgba(3, 11, 22, 0.78);
 }
 
 .score-row.has-points::after {
@@ -310,9 +335,16 @@ h2 {
   white-space: nowrap;
 }
 
-.points {
+.score-cell {
   justify-self: end;
-  min-width: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.points {
+  min-width: 44px;
   padding: 4px 7px;
   border-radius: 8px;
   color: #08101d;
@@ -322,23 +354,16 @@ h2 {
   text-align: center;
 }
 
-.last-points {
-  color: var(--gold);
-  font-size: 0.68rem;
-  font-weight: 900;
-}
-
-.point-special-8 .last-points {
-  color: var(--cyan);
-}
-
-.point-special-10 .last-points {
-  color: var(--magenta);
-}
-
-.point-special-12 .last-points {
-  color: var(--gold);
-  font-size: 0.86rem;
+.point-badge {
+  min-width: 36px;
+  padding: 3px 6px;
+  border: 1px solid rgba(var(--award-rgb), 0.86);
+  border-radius: 999px;
+  color: rgb(var(--award-rgb));
+  background: rgba(var(--award-rgb), 0.16);
+  font-size: 0.74rem;
+  font-weight: 950;
+  text-align: center;
 }
 
 @keyframes pointPulse {
@@ -735,8 +760,12 @@ textarea:focus {
     display: grid;
   }
 
+  .stage-actions {
+    justify-content: space-between;
+  }
+
   .score-row {
-    grid-template-columns: 42px minmax(0, 1fr) 70px;
+    grid-template-columns: 42px minmax(0, 1fr) 88px;
   }
 
   .entry-name {

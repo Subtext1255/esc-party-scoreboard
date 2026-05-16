@@ -48,13 +48,15 @@ const els = {
   inviteQr: document.querySelector("#invite-qr"),
   inviteHelp: document.querySelector("#invite-help"),
   newHostPassword: document.querySelector("#new-host-password"),
-  setHostPassword: document.querySelector("#set-host-password")
+  setHostPassword: document.querySelector("#set-host-password"),
+  presentationToggle: document.querySelector("#presentation-toggle")
 };
 
 let events;
 session.hostToken = getStoredHostToken(session.partyId);
 loadActiveDeviceBallot();
 applyBackgroundMode(localStorage.getItem("backgroundMode") || "image");
+applyPresentationMode(localStorage.getItem("presentationMode") === "true");
 connectEvents();
 bindTabs();
 bindActions();
@@ -101,14 +103,16 @@ function renderScoreboard() {
 
   els.scoreboard.innerHTML = state.scoreboard
     .map((entry, index) => `
-      <article class="score-row ${entry.lastPoints ? `has-points point-${entry.pointTier}` : ""}" data-entry-id="${entry.id}">
+      <article class="score-row ${entry.lastPoints ? `has-points point-value-${entry.lastPoints}` : ""}" style="${entry.lastPoints ? awardStyle(entry.lastPoints) : ""}" data-entry-id="${entry.id}">
         <div class="rank">${index + 1}</div>
         <div>
           <div class="entry-name">${flagMarkup(entry)}<span>${escapeHtml(entry.countryName || entry.country || entry.name)}</span></div>
           <div class="entry-meta">${escapeHtml(entry.song || "")}${entry.song && entry.artist ? " / " : ""}${escapeHtml(entry.artist || "")}</div>
-          ${entry.lastPoints ? `<div class="last-points">+${entry.lastPoints} from ${escapeHtml(state.currentReveal?.juror || "")}</div>` : ""}
         </div>
-        <div class="points">${entry.total}</div>
+        <div class="score-cell">
+          ${entry.lastPoints ? `<span class="point-badge">+${entry.lastPoints}</span>` : ""}
+          <span class="points">${entry.total}</span>
+        </div>
       </article>
     `)
     .join("");
@@ -263,16 +267,14 @@ function renderSpotlight() {
 
     if (lastAwards.length > 1) {
       els.spotlight.innerHTML = `
-        <span class="spotlight-label">${escapeHtml(reveal.juror)} awards</span>
-        <strong>${lastAwards.length} entries receive 1-${highestAward.points} points</strong>
+        <strong>${escapeHtml(reveal.juror)} awards 1-${highestAward.points} points to ${lastAwards.length} entries</strong>
         <span>${reveal.finished ? "Jury complete." : "Next award is ready."}</span>
       `;
       return;
     }
 
       els.spotlight.innerHTML = `
-        <span class="spotlight-label">${escapeHtml(reveal.juror)} awards</span>
-      <strong>${highestAward.points} points to ${flagMarkup(entry)}${escapeHtml(entry?.countryName || entry?.country || "Unknown entry")}</strong>
+      <strong>${escapeHtml(reveal.juror)} awards ${highestAward.points} points to ${flagMarkup(entry)}${escapeHtml(entry?.countryName || entry?.country || "Unknown entry")}</strong>
       <span>${escapeHtml(entryDetail(entry))}${reveal.finished ? " Jury complete." : ""}</span>
     `;
     return;
@@ -360,6 +362,10 @@ function bindActions() {
 
   els.backgroundButtons.forEach((button) => {
     button.addEventListener("click", () => applyBackgroundMode(button.dataset.backgroundMode));
+  });
+
+  els.presentationToggle.addEventListener("click", () => {
+    applyPresentationMode(!document.body.classList.contains("is-presentation"));
   });
 }
 
@@ -887,6 +893,22 @@ function flagMarkup(entry) {
     </span>`;
 }
 
+function awardStyle(points) {
+  const colors = {
+    1: "74, 222, 128",
+    2: "45, 212, 191",
+    3: "56, 189, 248",
+    4: "129, 140, 248",
+    5: "168, 85, 247",
+    6: "217, 70, 239",
+    7: "244, 114, 182",
+    8: "251, 113, 133",
+    10: "251, 146, 60",
+    12: "250, 204, 21"
+  };
+  return `--award-rgb: ${colors[points] || "255, 209, 102"};`;
+}
+
 function applyBackgroundMode(mode) {
   const nextMode = mode === "css" ? "css" : "image";
   document.body.dataset.backgroundMode = nextMode;
@@ -895,4 +917,11 @@ function applyBackgroundMode(mode) {
   els.backgroundButtons.forEach((button) => {
     button.classList.toggle("is-active", button.dataset.backgroundMode === nextMode);
   });
+}
+
+function applyPresentationMode(isPresentation) {
+  document.body.classList.toggle("is-presentation", isPresentation);
+  localStorage.setItem("presentationMode", String(isPresentation));
+  els.presentationToggle.textContent = isPresentation ? "Show Panel" : "Hide Panel";
+  els.presentationToggle.setAttribute("aria-pressed", String(isPresentation));
 }
