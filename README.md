@@ -6,6 +6,7 @@ A live Eurovision-style party scoreboard for collecting juror rankings, revealin
 
 - Node.js 20 or newer
 - For local hosting, guests must be on the same local network as the host computer.
+- Docker, if you want the self-hosted SQLite setup.
 
 ## Install Node.js
 
@@ -73,7 +74,114 @@ http://localhost:4173
 
 Opening the app with no saved party now shows a start screen where you can create a new party or join an existing one with a 6-character party code.
 
-The app stores party data in `data/parties/`. That folder is ignored by git.
+Local `npm start` uses JSON storage by default. Party data is stored in `data/parties/`, and entry lists saved from the editor are stored in `data/entry-lists/`. The `data/` folder is ignored by git.
+
+## Run With Docker
+
+Docker is the recommended path for public self-hosting. The container uses SQLite by default and stores all runtime data in a mounted `/data` volume.
+
+1. Create an environment file:
+
+```bash
+cp .env.example .env
+```
+
+2. Edit `.env` and set a real admin secret:
+
+```text
+ADMIN_SECRET=use-a-long-random-secret
+```
+
+3. Start the app:
+
+```bash
+docker compose up --build -d
+```
+
+4. Open:
+
+```text
+http://localhost:4173
+```
+
+The Compose setup uses:
+
+```text
+STORAGE_DRIVER=sqlite
+DATABASE_FILE=/data/scoreboard.sqlite
+PARTY_CREATION=admin
+```
+
+With `PARTY_CREATION=admin`, guests can still join and vote normally, but creating a new party requires the admin secret. If you want anyone to be able to create parties on a private/demo instance, set:
+
+```text
+PARTY_CREATION=open
+```
+
+If `PARTY_CREATION=admin` and `ADMIN_SECRET` is empty, party creation is disabled until you configure a secret.
+
+Only run one app container against a SQLite volume. The live browser updates use in-memory SSE connections, so this version is designed for a single running instance.
+
+## Docker Backups
+
+The named Docker volume `esc-scoreboard-data` contains the SQLite database and runtime-saved entry lists. Back up the volume before upgrades.
+
+One simple backup option is:
+
+```bash
+docker compose stop
+docker run --rm -v esc-scoreboard-data:/data -v "$PWD:/backup" alpine tar czf /backup/esc-scoreboard-data.tgz -C /data .
+docker compose up -d
+```
+
+To restore, stop the app and unpack the archive into the same volume.
+
+## Reverse Proxy Hosting
+
+Put the app behind HTTPS at a domain root, for example:
+
+```text
+https://scoreboard.example.com/
+```
+
+The Node app serves HTTP only. Terminate HTTPS in your reverse proxy and forward requests to the container on port `4173`. Server-sent events are used for live updates, so disable proxy buffering for `/api/events`.
+
+### Caddy
+
+```text
+scoreboard.example.com {
+  reverse_proxy scoreboard:4173
+}
+```
+
+### nginx
+
+```nginx
+server {
+  listen 443 ssl http2;
+  server_name scoreboard.example.com;
+
+  location / {
+    proxy_pass http://127.0.0.1:4173;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location /api/events {
+    proxy_pass http://127.0.0.1:4173;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;
+    proxy_cache off;
+  }
+}
+```
+
+Hosting under a subpath such as `/scoreboard/` is not supported in this version; use a dedicated subdomain or domain root.
 
 ## Run From VS Code
 
@@ -259,13 +367,13 @@ New parties created from the start screen use 6-character codes. Each party has 
 - scoreboard totals
 - host lock state
 
-Saved entry lists live in:
+Bundled entry lists live in:
 
 ```text
 entries/
 ```
 
-The default starter lineup is `entries/2026.tsv`. Use the `Edit Entries` link in Settings to open the dedicated entry editor page. It can load another saved list, edit entries with separate country/artist/song fields, apply the edited entries to the current party, or save the edited rows as a reusable list.
+The default starter lineup is `entries/2026.tsv`. Entry lists saved at runtime are stored in `data/entry-lists/` for local JSON mode or in SQLite for Docker mode. Use the `Edit Entries` link in Settings to open the dedicated entry editor page. It can load another saved list, edit entries with separate country/artist/song fields, apply the edited entries to the current party, or save the edited rows as a reusable list.
 
 After a party edits or loads entries, voting for that party is reset.
 
@@ -283,4 +391,6 @@ Guest devices can submit and edit their own ballot until the host starts present
 
 ## Public Hosting Notes
 
-The app is now designed around party codes for public deployment. For a real public deployment, use HTTPS and persistent storage/backups. The current version uses local JSON files, which is fine for local hosting and simple demos but not ideal as the only storage for a production public service.
+The app is designed around party codes for public deployment. For public hosting, use Docker with SQLite storage, HTTPS through a reverse proxy, a persistent `/data` volume, and regular backups.
+
+Vercel/serverless deployments are demo-only for this app. Persistent storage and long-lived SSE connections are better matched to the Docker single-server setup.

@@ -7,11 +7,11 @@
       "config": {
         "includeFiles": [
           "index.html",
+          "storage.js",
           "app.js",
           "entries.html",
           "entries.js",
           "styles.css",
-          "assets/**",
           "entries/**"
         ]
       }

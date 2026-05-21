@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Eurovision Party Scoreboard</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260520-large-screens-2">
   </head>
   <body>
     <section class="landing-page is-hidden" id="landing-page" aria-labelledby="landing-title">
@@ -24,6 +24,10 @@
             <label>
               Join password
               <input id="landing-create-password" type="password" autocomplete="new-password" placeholder="Optional">
+            </label>
+            <label class="is-hidden" id="landing-admin-secret-group">
+              Admin secret
+              <input id="landing-admin-secret" type="password" autocomplete="current-password" placeholder="Required to create">
             </label>
             <button class="primary-action" type="button" id="landing-create-party">Create Party</button>
           </section>
@@ -177,16 +181,6 @@
               <button type="button" id="set-host-password">Set Password</button>
             </div>
             <p class="form-note" id="host-password-message"></p>
-          </div>
-
-          <div class="settings-divider"></div>
-
-          <div class="settings-group">
-            <span>Background</span>
-            <div class="segmented-control" aria-label="Background style">
-              <button class="is-active" type="button" data-background-mode="image">Image</button>
-              <button type="button" data-background-mode="css">CSS</button>
-            </div>
           </div>
 
         </section>

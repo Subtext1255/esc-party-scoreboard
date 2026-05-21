@@ -11,6 +11,8 @@
   --green: #6ee7a8;
   --danger: #ff7a7a;
   --shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+  --ui-scale: 1;
+  --stage-scale: 1;
 }
 
 * {
@@ -22,13 +24,7 @@ body {
   margin: 0;
   color: var(--ink);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background:
-    linear-gradient(90deg, rgba(2, 6, 14, 0.7), rgba(2, 6, 14, 0.18), rgba(2, 6, 14, 0.78)),
-    url("/assets/stage-backdrop.png") center / cover fixed,
-    #07111f;
-}
-
-body[data-background-mode="css"] {
+  font-size: calc(1rem * var(--ui-scale));
   background:
     linear-gradient(115deg, rgba(245, 85, 166, 0.24) 0 8%, transparent 8% 26%, rgba(52, 215, 232, 0.2) 26% 34%, transparent 34% 100%),
     linear-gradient(245deg, transparent 0 18%, rgba(255, 209, 102, 0.2) 18% 25%, transparent 25% 48%, rgba(52, 215, 232, 0.16) 48% 55%, transparent 55% 100%),
@@ -46,7 +42,7 @@ textarea {
 }
 
 button {
-  min-height: 42px;
+  min-height: calc(42px * var(--ui-scale));
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--ink);
@@ -70,10 +66,11 @@ button:disabled {
 
 .app-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) clamp(320px, 22vw, 560px);
+  align-items: start;
+  gap: calc(16px * var(--ui-scale));
   min-height: 100vh;
-  padding: 14px;
+  padding: calc(14px * var(--ui-scale));
 }
 
 body.is-presentation .app-shell {
@@ -111,7 +108,7 @@ body.is-presentation .control-deck {
 
 .landing-heading h1 {
   max-width: 760px;
-  font-size: clamp(2rem, 4vw, 3.7rem);
+  font-size: clamp(2rem, calc(2.8rem * var(--ui-scale)), 4.4rem);
 }
 
 .landing-sections {
@@ -169,8 +166,9 @@ body.is-presentation .control-deck {
 .score-stage {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 28px);
-  padding: 16px;
+  height: calc(100vh - (28px * var(--ui-scale)));
+  min-height: calc(100vh - (28px * var(--ui-scale)));
+  padding: calc(16px * var(--stage-scale));
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(3, 10, 20, 0.5), rgba(3, 10, 20, 0.82));
 }
@@ -179,23 +177,23 @@ body.is-presentation .control-deck {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 10px;
+  gap: calc(18px * var(--ui-scale));
+  margin-bottom: calc(10px * var(--ui-scale));
 }
 
 .stage-actions {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 8px;
+  gap: calc(8px * var(--ui-scale));
 }
 
 .stage-share {
   display: grid;
-  grid-template-columns: minmax(110px, auto) 118px;
+  grid-template-columns: minmax(calc(110px * var(--ui-scale)), auto) calc(118px * var(--ui-scale));
   align-items: center;
-  gap: 12px;
-  padding: 8px;
+  gap: calc(12px * var(--ui-scale));
+  padding: calc(8px * var(--ui-scale));
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(7, 18, 35, 0.82);
@@ -203,9 +201,9 @@ body.is-presentation .control-deck {
 
 .stage-share span {
   display: block;
-  margin-bottom: 3px;
+  margin-bottom: calc(3px * var(--ui-scale));
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: calc(0.7rem * var(--ui-scale));
   font-weight: 850;
   text-transform: uppercase;
 }
@@ -214,15 +212,15 @@ body.is-presentation .control-deck {
   display: block;
   color: var(--gold);
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-  font-size: 1.35rem;
+  font-size: calc(1.35rem * var(--ui-scale));
   letter-spacing: 0.12em;
 }
 
 .stage-share canvas {
   display: block;
-  width: 118px;
-  height: 118px;
-  padding: 5px;
+  width: calc(118px * var(--ui-scale));
+  height: calc(118px * var(--ui-scale));
+  padding: calc(5px * var(--ui-scale));
   border-radius: 6px;
   background: #ffffff;
   image-rendering: pixelated;
@@ -233,9 +231,9 @@ body.is-presentation .control-deck {
 }
 
 .eyebrow {
-  margin: 0 0 6px;
+  margin: 0 0 calc(6px * var(--ui-scale));
   color: var(--gold);
-  font-size: 0.78rem;
+  font-size: calc(0.78rem * var(--ui-scale));
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -249,32 +247,32 @@ h2 {
 }
 
 h1 {
-  font-size: clamp(1.9rem, 3.4vw, 4rem);
+  font-size: clamp(1.9rem, calc(2.45rem * var(--stage-scale)), 5.2rem);
   text-shadow: 0 4px 26px rgba(0, 0, 0, 0.55);
 }
 
 h2 {
-  margin-bottom: 18px;
-  font-size: 1.25rem;
+  margin-bottom: calc(18px * var(--ui-scale));
+  font-size: calc(1.25rem * var(--ui-scale));
 }
 
 .connection-pill {
   flex: 0 0 auto;
-  padding: 8px 10px;
+  padding: calc(8px * var(--ui-scale)) calc(10px * var(--ui-scale));
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--muted);
   background: rgba(0, 0, 0, 0.28);
-  font-size: 0.78rem;
+  font-size: calc(0.78rem * var(--ui-scale));
   font-weight: 800;
   text-transform: uppercase;
 }
 
 .panel-toggle {
-  min-height: 36px;
-  padding: 0 12px;
+  min-height: calc(36px * var(--ui-scale));
+  padding: 0 calc(12px * var(--ui-scale));
   color: var(--ink);
-  font-size: 0.78rem;
+  font-size: calc(0.78rem * var(--ui-scale));
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -286,14 +284,14 @@ h2 {
 
 .button-link {
   display: inline-grid;
-  min-height: 42px;
+  min-height: calc(42px * var(--ui-scale));
   place-items: center;
-  padding: 0 14px;
+  padding: 0 calc(14px * var(--ui-scale));
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--ink);
   background: rgba(255, 255, 255, 0.08);
-  font-size: 0.86rem;
+  font-size: calc(0.86rem * var(--ui-scale));
   font-weight: 900;
   text-align: center;
   text-decoration: none;
@@ -303,10 +301,10 @@ h2 {
 .spotlight {
   position: relative;
   display: grid;
-  gap: 3px;
-  min-height: 66px;
-  margin-bottom: 10px;
-  padding: 10px 12px;
+  gap: calc(3px * var(--stage-scale));
+  min-height: calc(66px * var(--stage-scale));
+  margin-bottom: calc(10px * var(--stage-scale));
+  padding: calc(10px * var(--stage-scale)) calc(12px * var(--stage-scale));
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 8px;
   background: linear-gradient(105deg, rgba(52, 215, 232, 0.18), rgba(245, 85, 166, 0.14), rgba(255, 209, 102, 0.12));
@@ -315,7 +313,7 @@ h2 {
 
 .spotlight-label {
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: calc(0.76rem * var(--stage-scale));
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -325,14 +323,14 @@ h2 {
   align-items: center;
   min-width: 0;
   overflow: hidden;
-  font-size: clamp(1.05rem, 1.7vw, 1.8rem);
+  font-size: clamp(1.05rem, calc(1.1rem * var(--stage-scale)), 2.4rem);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .spotlight-status {
   color: var(--gold);
-  font-size: 0.86rem;
+  font-size: calc(0.86rem * var(--stage-scale));
   font-weight: 950;
   text-transform: uppercase;
 }
@@ -340,12 +338,12 @@ h2 {
 .spotlight.has-winner strong {
   flex-wrap: wrap;
   gap: 6px;
-  font-size: clamp(1.35rem, 2.7vw, 3rem);
+  font-size: clamp(1.35rem, calc(1.6rem * var(--stage-scale)), 4rem);
   white-space: normal;
 }
 
 .spotlight.has-voting-status {
-  min-height: 92px;
+  min-height: calc(92px * var(--stage-scale));
   place-content: center;
   border-color: rgba(52, 215, 232, 0.58);
   background:
@@ -355,7 +353,7 @@ h2 {
 
 .spotlight.has-voting-status strong {
   justify-content: center;
-  font-size: clamp(1.8rem, 4.4vw, 5.4rem);
+  font-size: clamp(1.8rem, calc(2.7rem * var(--stage-scale)), 7rem);
   text-align: center;
   white-space: normal;
 }
@@ -433,19 +431,20 @@ h2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-auto-flow: column;
   grid-template-rows: repeat(13, minmax(0, 1fr));
-  gap: 5px 8px;
+  gap: calc(5px * var(--stage-scale)) calc(8px * var(--stage-scale));
   flex: 1;
+  min-height: 0;
   overflow: hidden;
-  padding-right: 3px;
+  padding-right: calc(3px * var(--stage-scale));
 }
 
 .score-row {
   position: relative;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) 88px;
+  grid-template-columns: calc(34px * var(--stage-scale)) minmax(0, 1fr) calc(88px * var(--stage-scale));
   align-items: center;
   min-height: 0;
-  padding: 4px 8px;
+  padding: calc(4px * var(--stage-scale)) calc(8px * var(--stage-scale));
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 8px;
   background: rgba(3, 11, 22, 0.78);
@@ -487,16 +486,16 @@ h2 {
 
 .rank {
   color: var(--gold);
-  font-size: 0.92rem;
+  font-size: calc(0.92rem * var(--stage-scale));
   font-weight: 900;
 }
 
 .entry-name {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: calc(7px * var(--stage-scale));
   overflow: hidden;
-  font-size: 0.9rem;
+  font-size: calc(0.9rem * var(--stage-scale));
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -511,14 +510,14 @@ h2 {
   display: inline-grid;
   flex: 0 0 auto;
   place-items: center;
-  width: 30px;
-  height: 22px;
+  width: calc(30px * var(--stage-scale));
+  height: calc(22px * var(--stage-scale));
 }
 
 .flag-icon,
 .flag-fallback {
-  width: 30px;
-  height: 22px;
+  width: calc(30px * var(--stage-scale));
+  height: calc(22px * var(--stage-scale));
   border: 1px solid rgba(255, 255, 255, 0.26);
   border-radius: 4px;
 }
@@ -533,7 +532,7 @@ h2 {
   place-items: center;
   color: #07111f;
   background: linear-gradient(135deg, var(--gold), var(--cyan));
-  font-size: 0.66rem;
+  font-size: calc(0.66rem * var(--stage-scale));
   font-weight: 950;
 }
 
@@ -544,26 +543,26 @@ h2 {
 .spotlight .flag-wrap {
   position: relative;
   top: -0.08em;
-  margin-right: 8px;
-  width: 38px;
-  height: 28px;
+  margin-right: calc(8px * var(--stage-scale));
+  width: calc(38px * var(--stage-scale));
+  height: calc(28px * var(--stage-scale));
 }
 
 .spotlight .flag-icon,
 .spotlight .flag-fallback {
-  width: 38px;
-  height: 28px;
+  width: calc(38px * var(--stage-scale));
+  height: calc(28px * var(--stage-scale));
 }
 
 .spotlight .flag-fallback {
-  font-size: 0.76rem;
+  font-size: calc(0.76rem * var(--stage-scale));
 }
 
 .entry-meta {
   overflow: hidden;
-  margin-top: 1px;
+  margin-top: calc(1px * var(--stage-scale));
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: calc(0.72rem * var(--stage-scale));
   font-weight: 720;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -574,28 +573,28 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 5px;
+  gap: calc(5px * var(--stage-scale));
 }
 
 .points {
-  min-width: 44px;
-  padding: 4px 7px;
+  min-width: calc(44px * var(--stage-scale));
+  padding: calc(4px * var(--stage-scale)) calc(7px * var(--stage-scale));
   border-radius: 8px;
   color: #08101d;
   background: var(--ink);
-  font-size: 0.95rem;
+  font-size: calc(0.95rem * var(--stage-scale));
   font-weight: 950;
   text-align: center;
 }
 
 .point-badge {
-  min-width: 36px;
-  padding: 3px 6px;
+  min-width: calc(36px * var(--stage-scale));
+  padding: calc(3px * var(--stage-scale)) calc(6px * var(--stage-scale));
   border: 1px solid rgba(var(--award-rgb), 0.86);
   border-radius: 999px;
   color: rgb(var(--award-rgb));
   background: rgba(var(--award-rgb), 0.16);
-  font-size: 0.74rem;
+  font-size: calc(0.74rem * var(--stage-scale));
   font-weight: 950;
   text-align: center;
 }
@@ -787,9 +786,32 @@ h2 {
   }
 }
 
+@media (min-width: 1500px) and (min-height: 820px) {
+  :root {
+    --ui-scale: 1.08;
+    --stage-scale: 1.22;
+  }
+}
+
+@media (min-width: 1900px) and (min-height: 1000px) {
+  :root {
+    --ui-scale: 1.22;
+    --stage-scale: 1.55;
+  }
+}
+
+@media (min-width: 2500px) and (min-height: 1300px) {
+  :root {
+    --ui-scale: 1.42;
+    --stage-scale: 1.95;
+  }
+}
+
 .control-deck {
   align-self: start;
-  min-height: calc(100vh - 28px);
+  min-height: calc(100vh - (28px * var(--ui-scale)));
+  max-height: calc(100vh - (28px * var(--ui-scale)));
+  overflow: auto;
   border-radius: 8px;
   background: var(--panel);
 }
@@ -820,13 +842,13 @@ h2 {
 
 .settings-group {
   display: grid;
-  gap: 10px;
-  margin-bottom: 18px;
+  gap: calc(10px * var(--ui-scale));
+  margin-bottom: calc(18px * var(--ui-scale));
 }
 
 .settings-group > span {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: calc(0.9rem * var(--ui-scale));
   font-weight: 850;
 }
 
@@ -840,7 +862,7 @@ h2 {
 }
 
 .segmented-control button {
-  min-height: 40px;
+  min-height: calc(40px * var(--ui-scale));
   border: 0;
   border-right: 1px solid var(--line);
   border-radius: 0;
@@ -860,7 +882,7 @@ h2 {
 
 .settings-divider {
   height: 1px;
-  margin: 18px 0;
+  margin: calc(18px * var(--ui-scale)) 0;
   background: var(--line);
 }
 
@@ -910,17 +932,20 @@ h2 {
 .entry-page {
   min-height: 100vh;
   background:
-    linear-gradient(90deg, rgba(2, 6, 14, 0.78), rgba(2, 6, 14, 0.5), rgba(2, 6, 14, 0.82)),
-    url("/assets/stage-backdrop.png") center / cover fixed,
-    #07111f;
+    linear-gradient(115deg, rgba(245, 85, 166, 0.24) 0 8%, transparent 8% 26%, rgba(52, 215, 232, 0.2) 26% 34%, transparent 34% 100%),
+    linear-gradient(245deg, transparent 0 18%, rgba(255, 209, 102, 0.2) 18% 25%, transparent 25% 48%, rgba(52, 215, 232, 0.16) 48% 55%, transparent 55% 100%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 58px),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 42px),
+    linear-gradient(180deg, #061326 0%, #0b1022 48%, #120817 100%);
+  background-attachment: fixed;
 }
 
 .entry-page-shell {
   display: grid;
-  gap: 16px;
-  width: min(1440px, calc(100% - 28px));
+  gap: calc(16px * var(--ui-scale));
+  width: min(calc(1440px * var(--ui-scale)), calc(100% - (28px * var(--ui-scale))));
   margin: 0 auto;
-  padding: 14px 0;
+  padding: calc(14px * var(--ui-scale)) 0;
 }
 
 .entry-page-header,
@@ -1048,7 +1073,7 @@ h2 {
 
 .panel {
   display: none;
-  padding: 20px;
+  padding: calc(20px * var(--ui-scale));
 }
 
 .panel.is-active {
@@ -1057,9 +1082,9 @@ h2 {
 
 label {
   display: grid;
-  gap: 8px;
+  gap: calc(8px * var(--ui-scale));
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: calc(0.9rem * var(--ui-scale));
   font-weight: 800;
 }
 
@@ -1076,8 +1101,8 @@ textarea {
 
 input,
 select {
-  min-height: 42px;
-  padding: 0 12px;
+  min-height: calc(42px * var(--ui-scale));
+  padding: 0 calc(12px * var(--ui-scale));
 }
 
 textarea {
@@ -1271,7 +1296,9 @@ textarea:focus {
 
   .score-stage,
   .control-deck {
+    height: auto;
     min-height: auto;
+    max-height: none;
   }
 
   .scoreboard {

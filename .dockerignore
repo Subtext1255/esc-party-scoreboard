@@ -1,0 +1,11 @@
+.git
+.gitignore
+data
+node_modules
+npm-debug.log
+Dockerfile
+compose.yaml
+.env
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

@@ -3,12 +3,18 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { createHash, randomBytes, randomUUID, timingSafeEqual } = require("node:crypto");
+const { createStorage } = require("./storage");
 
 const PORT = Number(process.env.PORT || 4173);
+const HOST = process.env.HOST || "127.0.0.1";
 const ROOT = __dirname;
 const DATA_DIR = path.resolve(process.env.DATA_DIR || (process.env.VERCEL ? path.join(os.tmpdir(), "esc-scoreboard-data") : path.join(ROOT, "data")));
 const PARTY_DIR = path.join(DATA_DIR, "parties");
 const ENTRY_LIST_DIR = path.join(ROOT, "entries");
+const STORAGE_DRIVER = String(process.env.STORAGE_DRIVER || (process.env.ESC_DOCKER ? "sqlite" : "json")).toLowerCase();
+const DATABASE_FILE = path.resolve(process.env.DATABASE_FILE || path.join(DATA_DIR, "scoreboard.sqlite"));
+const PARTY_CREATION = String(process.env.PARTY_CREATION || "open").toLowerCase();
+const ADMIN_SECRET = String(process.env.ADMIN_SECRET || "");
 const DEFAULT_ENTRY_LIST_ID = "2026";
 const ENTRIES_FILE = path.resolve(process.env.ENTRIES_FILE || path.join(ENTRY_LIST_DIR, `${DEFAULT_ENTRY_LIST_ID}.tsv`));
 const DEFAULT_PARTY_ID = "local";
@@ -28,11 +34,25 @@ const MIME_TYPES = {
   ".ico": "image/x-icon"
 };
 
+const storage = createStorage({
+  driver: STORAGE_DRIVER,
+  dataDir: DATA_DIR,
+  partyDir: PARTY_DIR,
+  databaseFile: DATABASE_FILE
+});
 const clients = new Map();
 
 async function handleRequest(req, res) {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
+
+    if (req.method === "GET" && url.pathname === "/healthz") {
+      return sendJson(res, 200, {
+        ok: true,
+        storage: storage.driver,
+        uptime: Math.round(process.uptime())
+      });
+    }
 
     if (req.method === "GET" && url.pathname === "/api/events") {
       return handleEvents(req, res, url);
@@ -52,8 +72,10 @@ async function handleRequest(req, res) {
 const server = http.createServer(handleRequest);
 
 if (require.main === module) {
-  server.listen(PORT, () => {
-    console.log(`Eurovision scoreboard running at http://localhost:${PORT}`);
+  server.listen(PORT, HOST, () => {
+    const hostLabel = ["0.0.0.0", "::"].includes(HOST) ? "localhost" : HOST;
+    console.log(`Eurovision scoreboard running at http://${hostLabel}:${PORT}`);
+    console.log(`Storage driver: ${storage.driver}`);
   });
 }
 
@@ -78,6 +100,9 @@ async function handleApi(req, res, url) {
 
   if (req.method === "POST" && url.pathname === "/api/parties") {
     const body = await readJson(req);
+    if (!canCreateParty(req, url, body)) {
+      return sendJson(res, 403, { error: "admin_secret_required" });
+    }
     const joinPassword = body.joinPassword ? String(body.joinPassword).trim() : null;
     if (joinPassword && joinPassword.length < 4) {
       return sendJson(res, 400, { error: "Join password must be at least 4 characters." });
@@ -192,7 +217,7 @@ async function handleApi(req, res, url) {
     }
 
     state.entries = entries;
-    state.entriesFile = savedListId ? path.relative(ROOT, getEntryListFile(savedListId)) : null;
+    state.entriesFile = savedListId ? getEntryListStatePath(savedListId, true) : null;
     state.submissions = [];
     state.appliedVotes = [];
     state.currentReveal = null;
@@ -223,7 +248,7 @@ async function handleApi(req, res, url) {
     }
 
     state.entries = entries;
-    state.entriesFile = path.relative(ROOT, getEntryListFile(listId));
+    state.entriesFile = getEntryListStatePath(listId);
     state.submissions = [];
     state.appliedVotes = [];
     state.currentReveal = null;
@@ -482,6 +507,7 @@ function handleEvents(req, res, url) {
   }
 
   res.writeHead(200, {
+    ...securityHeaders(),
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache, no-transform",
     Connection: "keep-alive",
@@ -503,20 +529,24 @@ function serveStatic(requestPath, res) {
   const filePath = path.normalize(path.join(ROOT, cleanPath));
 
   if (!filePath.startsWith(ROOT)) {
-    res.writeHead(403);
+    res.writeHead(403, securityHeaders());
     res.end("Forbidden");
     return;
   }
 
   fs.readFile(filePath, (error, content) => {
     if (error) {
-      res.writeHead(404);
+      res.writeHead(404, securityHeaders());
       res.end("Not found");
       return;
     }
 
     const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, { "Content-Type": MIME_TYPES[ext] || "application/octet-stream" });
+    res.writeHead(200, {
+      ...securityHeaders(),
+      "Cache-Control": isStaticAsset(ext) ? "public, max-age=300" : "no-cache",
+      "Content-Type": MIME_TYPES[ext] || "application/octet-stream"
+    });
     res.end(content);
   });
 }
@@ -787,6 +817,13 @@ function releaseHost(state, token) {
   }
 }
 
+function canCreateParty(req, url, body = {}) {
+  if (PARTY_CREATION !== "admin") return true;
+  if (!ADMIN_SECRET) return false;
+  const providedSecret = String(body.adminSecret || req.headers["x-admin-secret"] || url.searchParams.get("adminSecret") || "");
+  return safeEqual(providedSecret, ADMIN_SECRET);
+}
+
 function requireHost(req, url, state) {
   if (isHostToken(state, getHostToken(req, url))) return {};
   return { status: 403, error: "Host controls are locked. Claim host access first." };
@@ -841,9 +878,9 @@ function saveAndBroadcast(state) {
 
 function loadPartyState(partyId) {
   const id = normalizePartyId(partyId);
+  const savedState = storage.loadParty(id);
 
-  try {
-    const savedState = JSON.parse(fs.readFileSync(getPartyFile(id), "utf8"));
+  if (savedState) {
     const state = {
       ...savedState,
       entries: Array.isArray(savedState.entries) && savedState.entries.length
@@ -859,16 +896,15 @@ function loadPartyState(partyId) {
     state.votingStatus = state.votingStatus || "open";
     state.votingStatusChangedAt = state.votingStatusChangedAt || null;
     return state;
-  } catch {
-    const state = createInitialState(id, id === DEFAULT_PARTY_ID ? "Local Watch Party" : "Eurovision Party");
-    savePartyState(state);
-    return state;
   }
+
+  const state = createInitialState(id, id === DEFAULT_PARTY_ID ? "Local Watch Party" : "Eurovision Party");
+  savePartyState(state);
+  return state;
 }
 
 function savePartyState(state) {
-  fs.mkdirSync(PARTY_DIR, { recursive: true });
-  fs.writeFileSync(getPartyFile(state.id), JSON.stringify(state, null, 2));
+  storage.saveParty(state);
 }
 
 function createInitialState(id = DEFAULT_PARTY_ID, name = "Eurovision Party", joinPassword = null) {
@@ -890,10 +926,6 @@ function createInitialState(id = DEFAULT_PARTY_ID, name = "Eurovision Party", jo
     },
     createdAt: new Date().toISOString()
   };
-}
-
-function getPartyFile(partyId) {
-  return path.join(PARTY_DIR, `${normalizePartyId(partyId)}.json`);
 }
 
 function getPartyId(url, req) {
@@ -981,35 +1013,57 @@ function readEntriesFile() {
 }
 
 function getEntryLists() {
+  const lists = new Map();
+
   try {
-    return fs.readdirSync(ENTRY_LIST_DIR)
+    fs.readdirSync(ENTRY_LIST_DIR)
       .filter((file) => file.toLowerCase().endsWith(".tsv"))
-      .map((file) => {
+      .forEach((file) => {
         const id = normalizeEntryListId(path.basename(file, ".tsv"));
-        return {
+        if (!id) return;
+        lists.set(id, {
           id,
           name: getEntryListName(id),
           path: path.relative(ROOT, path.join(ENTRY_LIST_DIR, file)),
           isDefault: path.resolve(ENTRY_LIST_DIR, file) === ENTRIES_FILE
-        };
-      })
-      .filter((list) => list.id)
-      .sort((a, b) => b.id.localeCompare(a.id));
+        });
+      });
   } catch {
-    return [];
+    // The bundled entry directory is optional in custom images.
   }
+
+  for (const rawId of storage.listEntryLists()) {
+    const id = normalizeEntryListId(rawId);
+    if (!id) continue;
+    lists.set(id, {
+      id,
+      name: getEntryListName(id),
+      path: `data/entry-lists/${id}.tsv`,
+      isDefault: false
+    });
+  }
+
+  return [...lists.values()].sort((a, b) => b.id.localeCompare(a.id));
 }
 
 function readEntryListFile(listId) {
-  return parseEntries(fs.readFileSync(getEntryListFile(listId), "utf8"));
+  const id = normalizeEntryListId(listId);
+  const storedList = storage.readEntryList(id);
+  if (storedList !== null) return parseEntries(storedList);
+  return parseEntries(fs.readFileSync(getBundledEntryListFile(id), "utf8"));
 }
 
 function writeEntryListFile(listId, entries) {
-  fs.mkdirSync(ENTRY_LIST_DIR, { recursive: true });
-  fs.writeFileSync(getEntryListFile(listId), formatEntries(entries));
+  storage.writeEntryList(normalizeEntryListId(listId), formatEntries(entries));
 }
 
-function getEntryListFile(listId) {
+function getEntryListStatePath(listId, forceStored = false) {
+  const id = normalizeEntryListId(listId);
+  if (forceStored || storage.readEntryList(id) !== null) return `data/entry-lists/${id}.tsv`;
+  return path.relative(ROOT, getBundledEntryListFile(id));
+}
+
+function getBundledEntryListFile(listId) {
   return path.join(ENTRY_LIST_DIR, `${normalizeEntryListId(listId)}.tsv`);
 }
 
@@ -1141,8 +1195,23 @@ function readJson(req) {
 }
 
 function sendJson(res, status, payload) {
-  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+  res.writeHead(status, {
+    ...securityHeaders(),
+    "Cache-Control": "no-store",
+    "Content-Type": "application/json; charset=utf-8"
+  });
   res.end(JSON.stringify(payload));
+}
+
+function securityHeaders() {
+  return {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "same-origin"
+  };
+}
+
+function isStaticAsset(ext) {
+  return [".css", ".js", ".png", ".jpg", ".jpeg", ".webp", ".ico"].includes(ext);
 }
 
 function slug(value) {

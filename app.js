@@ -42,7 +42,6 @@ const els = {
   closeVoting: document.querySelector("#close-voting"),
   addPracticeBallots: document.querySelector("#add-practice-ballots"),
   resetVotes: document.querySelector("#reset-votes"),
-  backgroundButtons: [...document.querySelectorAll("[data-background-mode]")],
   hostStatus: document.querySelector("#host-status"),
   hostStatusDetail: document.querySelector("#host-status-detail"),
   hostPassword: document.querySelector("#host-password"),
@@ -71,6 +70,8 @@ const els = {
   landingJoinPasswordGroup: document.querySelector("#landing-join-password-group"),
   landingCreateName: document.querySelector("#landing-create-name"),
   landingCreatePassword: document.querySelector("#landing-create-password"),
+  landingAdminSecretGroup: document.querySelector("#landing-admin-secret-group"),
+  landingAdminSecret: document.querySelector("#landing-admin-secret"),
   landingCreateParty: document.querySelector("#landing-create-party"),
   landingJoinParty: document.querySelector("#landing-join-party")
 };
@@ -80,7 +81,6 @@ let hasRenderedSpotlight = false;
 session.hostToken = session.partyId ? getStoredHostToken(session.partyId) : "";
 session.joinToken = session.partyId ? getStoredJoinToken(session.partyId) : "";
 loadActiveDeviceBallot();
-applyBackgroundMode(localStorage.getItem("backgroundMode") || "image");
 applyPresentationMode(localStorage.getItem("presentationMode") === "true");
 bindTabs();
 bindActions();
@@ -519,16 +519,23 @@ function bindActions() {
   els.hostPassword.addEventListener("keydown", (event) => {
     if (event.key === "Enter") claimHost();
   });
-  els.createParty.addEventListener("click", () => createParty());
+  els.createParty.addEventListener("click", async () => {
+    try {
+      await createParty();
+    } catch (error) {
+      renderLanding(error.message, { keepAdminSecret: error.code === "admin_secret_required" });
+    }
+  });
   els.joinParty.addEventListener("click", () => switchParty(els.partyIdInput.value));
   if (els.landingCreateParty) {
     els.landingCreateParty.addEventListener("click", async () => {
       try {
         const password = els.landingCreatePassword?.value || "";
         const name = els.landingCreateName?.value || "Eurovision Party";
-        await createParty(password, name);
+        const adminSecret = els.landingAdminSecret?.value || "";
+        await createParty(password, name, adminSecret);
       } catch (error) {
-        renderLanding(error.message);
+        renderLanding(error.message, { keepAdminSecret: error.code === "admin_secret_required" });
       }
     });
   }
@@ -558,6 +565,11 @@ function bindActions() {
       if (event.key === "Enter") els.landingJoinParty?.click();
     });
   }
+  if (els.landingAdminSecret) {
+    els.landingAdminSecret.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") els.landingCreateParty?.click();
+    });
+  }
   els.setHostPassword.addEventListener("click", () => setHostPassword());
   els.deviceBallots.addEventListener("change", () => selectDeviceBallot(els.deviceBallots.value));
   els.newBallot.addEventListener("click", () => selectDeviceBallot("", { clearForm: true }));
@@ -570,10 +582,6 @@ function bindActions() {
   els.resetVotes.addEventListener("click", async () => {
     if (!confirm("Reset every submission and applied vote?")) return;
     await api("/api/reset", { method: "POST", body: { mode: "votes" } });
-  });
-
-  els.backgroundButtons.forEach((button) => {
-    button.addEventListener("click", () => applyBackgroundMode(button.dataset.backgroundMode));
   });
 
   els.presentationToggle.addEventListener("click", () => {
@@ -610,9 +618,10 @@ async function claimHost() {
   }
 }
 
-async function createParty(joinPassword = "", name = els.partyName.value || "Eurovision Party") {
+async function createParty(joinPassword = "", name = els.partyName.value || "Eurovision Party", adminSecret = "") {
   const body = { name };
   if (joinPassword) body.joinPassword = joinPassword;
+  if (adminSecret) body.adminSecret = adminSecret;
 
   const data = await api("/api/parties", {
     method: "POST",
@@ -782,6 +791,9 @@ async function api(url, options = {}) {
       error.partyName = data.partyName;
       removeJoinToken(data.partyId || session.partyId);
       session.joinToken = "";
+    } else if (data.error === "admin_secret_required") {
+      error.code = "admin_secret_required";
+      error.message = "Enter the admin secret to create a party on this server.";
     } else if (data.error === "Host controls are locked. Claim host access first.") {
       error.code = "host_token_stale";
       removeHostToken(session.partyId);
@@ -1236,6 +1248,12 @@ function renderLanding(errorMessage = "", options = {}) {
   } else {
     els.landingJoinPasswordGroup?.classList.remove("is-hidden");
   }
+  if (!options.keepAdminSecret) {
+    els.landingAdminSecretGroup?.classList.add("is-hidden");
+  } else {
+    els.landingAdminSecretGroup?.classList.remove("is-hidden");
+    els.landingAdminSecret?.focus();
+  }
   setLandingMessage(errorMessage, Boolean(errorMessage));
 }
 
@@ -1392,16 +1410,6 @@ function awardStyle(points) {
     12: "250, 204, 21"
   };
   return `--award-rgb: ${colors[points] || "255, 209, 102"};`;
-}
-
-function applyBackgroundMode(mode) {
-  const nextMode = mode === "css" ? "css" : "image";
-  document.body.dataset.backgroundMode = nextMode;
-  localStorage.setItem("backgroundMode", nextMode);
-
-  els.backgroundButtons.forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.backgroundMode === nextMode);
-  });
 }
 
 function applyPresentationMode(isPresentation) {

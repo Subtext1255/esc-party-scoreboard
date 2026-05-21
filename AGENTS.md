@@ -7,13 +7,13 @@ This is a small Node.js 20+ Eurovision-style party scoreboard. It serves a brows
 The app is intentionally dependency-light:
 
 - `server.js` is the Node HTTP server, API layer, party persistence, scoring/reveal logic, and static file server.
+- `storage.js` contains the JSON and SQLite storage drivers used by `server.js`.
 - `app.js` is the browser client, UI rendering, host controls, local ballot storage, invite QR generation, and SSE handling.
 - `index.html` defines the app shell and DOM targets used by `app.js`.
 - `entries.html` and `entries.js` define the dedicated full-width entry editor.
 - `styles.css` owns the visual design and responsive/presentation modes.
 - `entries/*.tsv` are saved entry lists; `entries/2026.tsv` is the default starter list for new parties.
-- `assets/stage-backdrop.png` is the main visual backdrop.
-- `data/` contains runtime party data and is ignored by git.
+- `data/` contains local runtime party data, runtime-saved entry lists, and optional SQLite data; it is ignored by git.
 
 ## Run And Verify
 
