@@ -196,6 +196,24 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, getPublicState(state, "", joinToken));
   }
 
+  if (req.method === "POST" && url.pathname === "/api/party/name") {
+    const auth = requireHost(req, url, state);
+    if (auth.error) return sendJson(res, auth.status, { error: auth.error });
+
+    const body = await readJson(req);
+    const name = String(body.name || "").trim();
+    if (!name) {
+      return sendJson(res, 400, { error: "Add a scoreboard title." });
+    }
+    if (name.length > 80) {
+      return sendJson(res, 400, { error: "Keep the scoreboard title under 80 characters." });
+    }
+
+    state.name = name;
+    saveAndBroadcast(state);
+    return sendJson(res, 200, getPublicState(state, getHostToken(req, url), joinToken));
+  }
+
   if (req.method === "POST" && url.pathname === "/api/entries") {
     const auth = requireHost(req, url, state);
     if (auth.error) return sendJson(res, auth.status, { error: auth.error });

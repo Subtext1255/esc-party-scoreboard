@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Eurovision Party Scoreboard</title>
-    <link rel="stylesheet" href="/styles.css?v=20260520-large-screens-2">
+    <link rel="stylesheet" href="/styles.css?v=20260520-large-screens-4">
   </head>
   <body>
     <section class="landing-page is-hidden" id="landing-page" aria-labelledby="landing-title">
@@ -55,27 +55,19 @@
     <main class="app-shell">
       <section class="score-stage" aria-labelledby="scoreboard-title">
         <div class="stage-topline">
-          <div>
-            <p class="eyebrow">Party final</p>
-            <h1 id="scoreboard-title">Eurovision Scoreboard</h1>
-          </div>
+          <h1 id="scoreboard-title">Eurovision Scoreboard</h1>
           <div class="stage-actions">
-            <div class="stage-share" id="stage-share" aria-label="Join this party">
-              <div>
-                <span>Join code</span>
-                <strong id="stage-party-code">------</strong>
-              </div>
-              <canvas id="stage-invite-qr" width="260" height="260" aria-label="Join QR code"></canvas>
-            </div>
             <button class="panel-toggle" type="button" id="presentation-toggle" aria-pressed="false">Hide Panel</button>
             <div class="connection-pill" id="connection-status">Connecting</div>
           </div>
         </div>
 
         <div class="spotlight" id="spotlight">
-          <span class="spotlight-label">Now revealing</span>
-          <strong>No jury selected</strong>
-          <span>Choose a pending jury from Host Control.</span>
+          <div class="spotlight-copy">
+            <span class="spotlight-label">Now revealing</span>
+            <strong>No jury selected</strong>
+            <span>Choose a pending jury from Host Control.</span>
+          </div>
         </div>
 
         <div class="scoreboard" id="scoreboard" aria-live="polite"></div>
@@ -187,6 +179,6 @@
       </aside>
     </main>
 
-    <script src="/app.js?v=20260516-share-qr"></script>
+    <script src="/app.js?v=20260520-large-screens-4"></script>
   </body>
 </html>

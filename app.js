@@ -22,6 +22,7 @@ const session = {
 
 const els = {
   connection: document.querySelector("#connection-status"),
+  scoreboardTitle: document.querySelector("#scoreboard-title"),
   scoreboard: document.querySelector("#scoreboard"),
   spotlight: document.querySelector("#spotlight"),
   rankingList: document.querySelector("#ranking-list"),
@@ -55,9 +56,6 @@ const els = {
   inviteLinkOptions: document.querySelector("#invite-link-options"),
   inviteQr: document.querySelector("#invite-qr"),
   inviteHelp: document.querySelector("#invite-help"),
-  stageShare: document.querySelector("#stage-share"),
-  stagePartyCode: document.querySelector("#stage-party-code"),
-  stageInviteQr: document.querySelector("#stage-invite-qr"),
   entryEditorLink: document.querySelector("#entry-editor-link"),
   newHostPassword: document.querySelector("#new-host-password"),
   setHostPassword: document.querySelector("#set-host-password"),
@@ -155,7 +153,7 @@ function renderScoreboard() {
     .map((entry, index) => `
       <article class="score-row ${entry.lastPoints ? `has-points point-value-${entry.lastPoints}` : ""}" style="${entry.lastPoints ? awardStyle(entry.lastPoints) : ""}" data-entry-id="${entry.id}">
         <div class="rank">${index + 1}</div>
-        <div>
+        <div class="entry-info">
           <div class="entry-name">${flagMarkup(entry)}<span>${escapeHtml(entry.countryName || entry.country || entry.name)}</span></div>
           <div class="entry-meta">${escapeHtml(entry.song || "")}${entry.song && entry.artist ? " / " : ""}${escapeHtml(entry.artist || "")}</div>
         </div>
@@ -297,21 +295,44 @@ function renderPartySettings() {
   const partyId = state.id || session.partyId;
   const shareCode = CODE_PATTERN.test(partyId) ? partyId.toUpperCase() : partyId;
   els.partyIdInput.value = shareCode;
-  els.stagePartyCode.textContent = shareCode;
-  els.partyName.value = state.name || "";
+  els.scoreboardTitle.textContent = state.name || "Eurovision Scoreboard";
+  if (document.activeElement !== els.partyName) {
+    els.partyName.value = state.name || "";
+  }
   const inviteLink = getBestInviteLink(partyId);
-  const stageInviteLink = getGuestInviteLink(partyId);
   els.inviteLink.value = inviteLink;
   renderInviteOptions(inviteLink);
   renderInviteQr(inviteLink);
-  renderInviteQr(stageInviteLink, els.stageInviteQr);
-  els.stageShare.classList.toggle("is-unavailable", !stageInviteLink);
   els.inviteHelp.textContent = isLocalHost() && inviteLink.includes("localhost")
     ? "Guests on other devices cannot use localhost. Use your computer's local IP address instead."
     : isLocalHost()
       ? "Use this local-network link for guests on the same Wi-Fi or wired network."
       : "Share this link with guests for this party.";
   els.entryEditorLink.href = `/entries.html?party=${encodeURIComponent(partyId)}`;
+}
+
+function stageShareMarkup() {
+  const partyId = state.id || session.partyId;
+  const shareCode = CODE_PATTERN.test(partyId) ? partyId.toUpperCase() : partyId;
+  return `
+    <div class="stage-share" id="stage-share" aria-label="Join this party">
+      <div>
+        <span>Join code</span>
+        <strong id="stage-party-code">${escapeHtml(shareCode || "------")}</strong>
+      </div>
+      <canvas id="stage-invite-qr" width="260" height="260" aria-label="Join QR code"></canvas>
+    </div>
+  `;
+}
+
+function renderStageInvite() {
+  const stageShare = document.querySelector("#stage-share");
+  const stageInviteQr = document.querySelector("#stage-invite-qr");
+  if (!stageShare || !stageInviteQr) return;
+
+  const stageInviteLink = getGuestInviteLink(state.id || session.partyId);
+  renderInviteQr(stageInviteLink, stageInviteQr);
+  stageShare.classList.toggle("is-unavailable", !stageInviteLink);
 }
 
 function renderSpotlight(animation = "") {
@@ -331,6 +352,7 @@ function renderSpotlight(animation = "") {
       <strong>${isTie ? `Tie: ${winners.map((entry) => `${flagMarkup(entry)}${escapeHtml(entry.countryName || entry.country || entry.name)}`).join(" & ")}` : `${flagMarkup(winner)}${escapeHtml(winner?.countryName || winner?.country || winner?.name || "Winner")}`}</strong>
       <span>${isTie ? `${winners.length} entries finish` : escapeHtml(entryDetail(winner))} with ${state.winnerReveal.total} points.</span>
     `;
+    renderStageInvite();
     animateSpotlight(animation);
     hasRenderedSpotlight = true;
     return;
@@ -339,10 +361,14 @@ function renderSpotlight(animation = "") {
   if (!state.currentReveal && state.votingStatus) {
     const isClosed = state.votingStatus === "closed";
     els.spotlight.innerHTML = `
-      <span class="spotlight-label">${juryProgress ? `Jury ${juryProgress.current} of ${juryProgress.total}` : "Voting status"}</span>
-      <strong>${isClosed ? "STOP VOTING NOW" : "START VOTING NOW"}</strong>
-      <span>${isClosed ? "The host has closed ballot submissions." : "Guests can submit or update their rankings."}</span>
+      <div class="spotlight-copy">
+        <span class="spotlight-label">${juryProgress ? `Jury ${juryProgress.current} of ${juryProgress.total}` : "Voting status"}</span>
+        <strong>${isClosed ? "STOP VOTING NOW" : "START VOTING NOW"}</strong>
+        <span>${isClosed ? "The host has closed ballot submissions." : "Guests can submit or update their rankings."}</span>
+      </div>
+      ${stageShareMarkup()}
     `;
+    renderStageInvite();
     animateSpotlight(animation);
     hasRenderedSpotlight = true;
     return;
@@ -355,6 +381,7 @@ function renderSpotlight(animation = "") {
       <strong>No jury selected</strong>
       <span>Choose a pending jury from Host Control.</span>
     `;
+    renderStageInvite();
     animateSpotlight(animation);
     hasRenderedSpotlight = true;
     return;
@@ -372,6 +399,7 @@ function renderSpotlight(animation = "") {
         <span>${reveal.finished ? "All points from this jury are on the board." : "Next award is ready."}</span>
         ${reveal.finished ? `<span class="spotlight-status">Jury complete.</span>` : ""}
       `;
+      renderStageInvite();
       animateSpotlight(animation);
       hasRenderedSpotlight = true;
       return;
@@ -383,6 +411,7 @@ function renderSpotlight(animation = "") {
       <span>${escapeHtml(entryDetail(entry))}</span>
       ${reveal.finished ? `<span class="spotlight-status">Jury complete.</span>` : ""}
     `;
+    renderStageInvite();
     animateSpotlight(animation);
     hasRenderedSpotlight = true;
     return;
@@ -393,6 +422,7 @@ function renderSpotlight(animation = "") {
     <strong>${escapeHtml(reveal.juror)}</strong>
     <span>Start with 1 point and build to 12.</span>
   `;
+  renderStageInvite();
   animateSpotlight(animation);
   hasRenderedSpotlight = true;
 }
@@ -526,6 +556,13 @@ function bindActions() {
       renderLanding(error.message, { keepAdminSecret: error.code === "admin_secret_required" });
     }
   });
+  els.partyName.addEventListener("blur", () => savePartyName());
+  els.partyName.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      els.partyName.blur();
+    }
+  });
   els.joinParty.addEventListener("click", () => switchParty(els.partyIdInput.value));
   if (els.landingCreateParty) {
     els.landingCreateParty.addEventListener("click", async () => {
@@ -630,6 +667,26 @@ async function createParty(joinPassword = "", name = els.partyName.value || "Eur
   });
 
   switchParty(data.party.id, data.hostToken, data.joinToken, data.party);
+}
+
+async function savePartyName() {
+  const name = els.partyName.value.trim() || "Eurovision Scoreboard";
+  if (name === state.name) return;
+
+  try {
+    const data = await api("/api/party/name", {
+      method: "POST",
+      body: { name }
+    });
+    updateState(data);
+  } catch (error) {
+    els.partyName.value = state.name || "";
+    if (error.code === "host_token_stale") {
+      connectEvents();
+      loadInitialState();
+    }
+    els.hostStatusDetail.textContent = error.message;
+  }
 }
 
 async function setHostPassword() {
