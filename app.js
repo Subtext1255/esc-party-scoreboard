@@ -159,21 +159,26 @@ function updateState(nextState) {
 
 function renderScoreboard() {
   const previousPositions = measureScoreRows();
+  const tieBreakLabels = getTieBreakLabels(state.scoreboard);
 
   els.scoreboard.innerHTML = state.scoreboard
-    .map((entry, index) => `
+    .map((entry, index) => {
+      const detail = entryDetailInlineMarkup(entry);
+      const tieBreakLabel = tieBreakLabels.get(entry.id);
+      return `
       <article class="score-row ${entry.lastPoints ? `has-points point-value-${entry.lastPoints}` : ""}" style="${entry.lastPoints ? awardStyle(entry.lastPoints) : ""}" data-entry-id="${entry.id}">
         <div class="rank">${index + 1}</div>
         <div class="entry-info">
-          <div class="entry-name">${flagMarkup(entry)}<span>${escapeHtml(entry.countryName || entry.country || entry.name)}</span></div>
-          <div class="entry-meta">${escapeHtml(entry.song || "")}${entry.song && entry.artist ? " / " : ""}${escapeHtml(entry.artist || "")}</div>
+          <div class="entry-name">${flagMarkup(entry)}<span class="entry-country">${escapeHtml(entry.countryName || entry.country || entry.name)}</span>${detail}</div>
+          ${tieBreakLabel ? `<div class="entry-meta tie-break-note">${escapeHtml(tieBreakLabel)}</div>` : ""}
         </div>
         <div class="score-cell">
           ${entry.lastPoints ? `<span class="point-badge">+${entry.lastPoints}</span>` : ""}
           <span class="points">${entry.total}</span>
         </div>
       </article>
-    `)
+    `;
+    })
     .join("");
 
   animateScoreRows(previousPositions);
@@ -1570,6 +1575,64 @@ function entryLabel(entry) {
 function entryDetail(entry) {
   if (!entry) return "";
   return [entry.song && `"${entry.song}"`, entry.artist].filter(Boolean).join(" / ");
+}
+
+function entryDetailInlineMarkup(entry) {
+  if (!entry) return "";
+  return [
+    entry.song ? `<span class="entry-inline-detail"><span class="detail-icon song-icon" aria-hidden="true"></span><span class="entry-detail-text">${escapeHtml(entry.song)}</span></span>` : "",
+    entry.artist ? `<span class="entry-inline-detail"><span class="detail-icon artist-icon" aria-hidden="true"></span><span class="entry-detail-text">${escapeHtml(entry.artist)}</span></span>` : ""
+  ].filter(Boolean).join("");
+}
+
+function getTieBreakLabels(scoreboard) {
+  const labels = new Map();
+  const groups = new Map();
+  for (const entry of scoreboard) {
+    if (!entry.total) continue;
+    const group = groups.get(entry.total) || [];
+    group.push(entry);
+    groups.set(entry.total, group);
+  }
+
+  for (const group of groups.values()) {
+    if (group.length > 1) assignTieBreakLabels(group, labels, 0);
+  }
+  return labels;
+}
+
+function assignTieBreakLabels(entries, labels, pointIndex) {
+  if (entries.length <= 1) return;
+  const points = state.pointsByRank.length ? state.pointsByRank : [12, 10, 8, 7, 6, 5, 4, 3, 2, 1];
+  const pointValue = points[pointIndex];
+
+  if (!pointValue) {
+    entries.forEach((entry) => {
+      if (entry.runningOrder) labels.set(entry.id, `Running order ${entry.runningOrder}`);
+    });
+    return;
+  }
+
+  const buckets = new Map();
+  for (const entry of entries) {
+    const count = Number(entry.pointCounts?.[pointValue] || 0);
+    const bucket = buckets.get(count) || [];
+    bucket.push(entry);
+    buckets.set(count, bucket);
+  }
+
+  if (buckets.size === 1) {
+    assignTieBreakLabels(entries, labels, pointIndex + 1);
+    return;
+  }
+
+  for (const [count, bucket] of buckets) {
+    if (bucket.length === 1) {
+      labels.set(bucket[0].id, `Received ${pointValue}pts from ${count} ${count === 1 ? "Jury" : "Juries"}`);
+    } else {
+      assignTieBreakLabels(bucket, labels, pointIndex + 1);
+    }
+  }
 }
 
 function flagMarkup(entry) {

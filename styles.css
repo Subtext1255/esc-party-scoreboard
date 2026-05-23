@@ -602,9 +602,48 @@ h2 {
   white-space: nowrap;
 }
 
-.entry-name > span:last-child {
+.entry-country,
+.entry-detail-text {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.entry-country {
+  flex: 0 1 auto;
+}
+
+.entry-inline-detail {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: calc(3px * var(--score-row-scale));
+  color: var(--muted);
+  font-size: calc(0.76rem * var(--score-row-scale));
+  font-weight: 720;
+}
+
+.detail-icon {
+  flex: 0 0 auto;
+  width: calc(12px * var(--score-row-scale));
+  height: calc(12px * var(--score-row-scale));
+  background: currentColor;
+  opacity: 0.86;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+}
+
+.song-icon {
+  -webkit-mask-image: url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/icons/music-note-beamed.svg");
+  mask-image: url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/icons/music-note-beamed.svg");
+}
+
+.artist-icon {
+  -webkit-mask-image: url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/icons/person-fill.svg");
+  mask-image: url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/icons/person-fill.svg");
 }
 
 .flag-wrap {
@@ -668,6 +707,12 @@ h2 {
   line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tie-break-note {
+  color: var(--gold);
+  font-size: calc(0.64rem * var(--score-row-scale));
+  font-weight: 820;
 }
 
 .score-cell {
@@ -908,12 +953,15 @@ h2 {
 
   body.is-presentation .entry-info {
     display: flex;
-    align-items: center;
-    gap: calc(16px * var(--stage-scale));
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: calc(2px * var(--score-row-scale));
     overflow: hidden;
   }
 
   body.is-presentation .entry-name {
+    width: 100%;
     flex: 0 1 auto;
   }
 
@@ -921,6 +969,14 @@ h2 {
     flex: 1 1 auto;
     margin-top: 0;
     font-size: calc(0.82rem * var(--stage-scale));
+  }
+
+  body.is-presentation .entry-meta.tie-break-note {
+    width: 100%;
+    flex: 0 0 auto;
+    margin-top: 0;
+    font-size: clamp(0.58rem, calc(0.5rem * var(--score-row-scale)), 0.78rem);
+    line-height: 1;
   }
 }
 

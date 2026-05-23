@@ -584,8 +584,13 @@ function serveStatic(requestPath, res) {
 
 function getPublicState(state, hostToken = "", joinToken = "") {
   const totals = new Map(state.entries.map((entry) => [entry.id, 0]));
+  const pointCounts = new Map(state.entries.map((entry) => [entry.id, createPointCounts()]));
   for (const vote of state.appliedVotes) {
     totals.set(vote.entryId, (totals.get(vote.entryId) || 0) + vote.points);
+    const counts = pointCounts.get(vote.entryId);
+    if (counts && POINTS_BY_RANK.includes(vote.points)) {
+      counts.set(vote.points, (counts.get(vote.points) || 0) + 1);
+    }
   }
 
   const recentAwards = getRecentAwards(state);
@@ -595,6 +600,7 @@ function getPublicState(state, hostToken = "", joinToken = "") {
       return {
         ...entry,
         total: totals.get(entry.id) || 0,
+        pointCounts: Object.fromEntries(pointCounts.get(entry.id) || createPointCounts()),
         lastPoints: recentAward?.points || null,
         pointTier: recentAward ? getPointTier(recentAward.points) : null
       };
@@ -1173,10 +1179,23 @@ function formatEntries(entries) {
   return `${lines.join("\n")}\n`;
 }
 
+function createPointCounts() {
+  return new Map(POINTS_BY_RANK.map((points) => [points, 0]));
+}
+
 function compareScoreboardEntries(a, b) {
   return b.total - a.total
+    || comparePointCounts(a, b)
     || compareRunningOrder(a, b)
     || a.name.localeCompare(b.name);
+}
+
+function comparePointCounts(a, b) {
+  for (const points of POINTS_BY_RANK) {
+    const diff = (b.pointCounts?.[points] || 0) - (a.pointCounts?.[points] || 0);
+    if (diff) return diff;
+  }
+  return 0;
 }
 
 function compareRunningOrder(a, b) {
