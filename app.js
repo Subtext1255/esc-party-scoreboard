@@ -1629,14 +1629,39 @@ function getTieBreakLabels(scoreboard) {
   }
 
   for (const group of groups.values()) {
-    if (group.length > 1) assignTieBreakLabels(group, labels, 0);
+    if (group.length > 1) assignTieBreakLabels(group, labels, "jurors", 0);
   }
   return labels;
 }
 
-function assignTieBreakLabels(entries, labels, pointIndex) {
+function assignTieBreakLabels(entries, labels, phase, pointIndex) {
   if (entries.length <= 1) return;
   const points = state.pointsByRank.length ? state.pointsByRank : [12, 10, 8, 7, 6, 5, 4, 3, 2, 1];
+
+  if (phase === "jurors") {
+    const buckets = new Map();
+    for (const entry of entries) {
+      const count = Number(entry.pointJurorCount || 0);
+      const bucket = buckets.get(count) || [];
+      bucket.push(entry);
+      buckets.set(count, bucket);
+    }
+
+    if (buckets.size === 1) {
+      assignTieBreakLabels(entries, labels, "points", 0);
+      return;
+    }
+
+    for (const [count, bucket] of buckets) {
+      if (bucket.length === 1) {
+        labels.set(bucket[0].id, `Received points from ${count} ${count === 1 ? "Jury" : "Juries"}`);
+      } else {
+        assignTieBreakLabels(bucket, labels, "points", 0);
+      }
+    }
+    return;
+  }
+
   const pointValue = points[pointIndex];
 
   if (!pointValue) {
@@ -1655,7 +1680,7 @@ function assignTieBreakLabels(entries, labels, pointIndex) {
   }
 
   if (buckets.size === 1) {
-    assignTieBreakLabels(entries, labels, pointIndex + 1);
+    assignTieBreakLabels(entries, labels, "points", pointIndex + 1);
     return;
   }
 
@@ -1663,7 +1688,7 @@ function assignTieBreakLabels(entries, labels, pointIndex) {
     if (bucket.length === 1) {
       labels.set(bucket[0].id, `Received ${pointValue}pts from ${count} ${count === 1 ? "Jury" : "Juries"}`);
     } else {
-      assignTieBreakLabels(bucket, labels, pointIndex + 1);
+      assignTieBreakLabels(bucket, labels, "points", pointIndex + 1);
     }
   }
 }

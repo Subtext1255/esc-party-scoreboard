@@ -585,12 +585,14 @@ function serveStatic(requestPath, res) {
 function getPublicState(state, hostToken = "", joinToken = "") {
   const totals = new Map(state.entries.map((entry) => [entry.id, 0]));
   const pointCounts = new Map(state.entries.map((entry) => [entry.id, createPointCounts()]));
+  const pointJurors = new Map(state.entries.map((entry) => [entry.id, new Set()]));
   for (const vote of state.appliedVotes) {
     totals.set(vote.entryId, (totals.get(vote.entryId) || 0) + vote.points);
     const counts = pointCounts.get(vote.entryId);
     if (counts && POINTS_BY_RANK.includes(vote.points)) {
       counts.set(vote.points, (counts.get(vote.points) || 0) + 1);
     }
+    pointJurors.get(vote.entryId)?.add(vote.submissionId || vote.juror || vote.id);
   }
 
   const recentAwards = getRecentAwards(state);
@@ -600,6 +602,7 @@ function getPublicState(state, hostToken = "", joinToken = "") {
       return {
         ...entry,
         total: totals.get(entry.id) || 0,
+        pointJurorCount: pointJurors.get(entry.id)?.size || 0,
         pointCounts: Object.fromEntries(pointCounts.get(entry.id) || createPointCounts()),
         lastPoints: recentAward?.points || null,
         pointTier: recentAward ? getPointTier(recentAward.points) : null
@@ -1190,6 +1193,7 @@ function createPointCounts() {
 
 function compareScoreboardEntries(a, b) {
   return b.total - a.total
+    || (b.pointJurorCount || 0) - (a.pointJurorCount || 0)
     || comparePointCounts(a, b)
     || compareRunningOrder(a, b)
     || a.name.localeCompare(b.name);
@@ -1205,6 +1209,17 @@ function comparePointCounts(a, b) {
 
 function getWinnerTieBreak(winner, tiedEntries) {
   if (tiedEntries.length <= 1) return null;
+
+  const winnerJurorCount = winner.pointJurorCount || 0;
+  const highestJurorCount = Math.max(...tiedEntries.map((entry) => entry.pointJurorCount || 0));
+  const entriesWithHighestJurorCount = tiedEntries.filter((entry) => (entry.pointJurorCount || 0) === highestJurorCount);
+  if (winnerJurorCount === highestJurorCount && entriesWithHighestJurorCount.length < tiedEntries.length) {
+    return {
+      type: "pointJurors",
+      count: winnerJurorCount,
+      label: `Received points from ${winnerJurorCount} ${winnerJurorCount === 1 ? "Jury" : "Juries"}`
+    };
+  }
 
   for (const points of POINTS_BY_RANK) {
     const winnerCount = winner.pointCounts?.[points] || 0;
