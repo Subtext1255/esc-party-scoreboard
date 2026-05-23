@@ -651,13 +651,18 @@ function getRecentAwards(state) {
 function getWinnerReveal(state, scoreboard) {
   if (!state.winnerReveal || !scoreboard.length) return null;
 
-  const winningTotal = scoreboard[0].total;
+  const winner = scoreboard[0];
+  const winningTotal = winner.total;
   if (winningTotal <= 0) return null;
+  const topEntries = scoreboard.filter((entry) => entry.total === winningTotal);
 
   return {
     shownAt: state.winnerReveal.shownAt,
     total: winningTotal,
-    entries: scoreboard.filter((entry) => entry.total === winningTotal)
+    entry: winner,
+    entries: [winner],
+    tiedEntries: topEntries,
+    tieBreak: getWinnerTieBreak(winner, topEntries)
   };
 }
 
@@ -1196,6 +1201,30 @@ function comparePointCounts(a, b) {
     if (diff) return diff;
   }
   return 0;
+}
+
+function getWinnerTieBreak(winner, tiedEntries) {
+  if (tiedEntries.length <= 1) return null;
+
+  for (const points of POINTS_BY_RANK) {
+    const winnerCount = winner.pointCounts?.[points] || 0;
+    const highestCount = Math.max(...tiedEntries.map((entry) => entry.pointCounts?.[points] || 0));
+    const entriesWithHighestCount = tiedEntries.filter((entry) => (entry.pointCounts?.[points] || 0) === highestCount);
+    if (winnerCount === highestCount && entriesWithHighestCount.length < tiedEntries.length) {
+      return {
+        type: "points",
+        points,
+        count: winnerCount,
+        label: `Received ${points}pts from ${winnerCount} ${winnerCount === 1 ? "Jury" : "Juries"}`
+      };
+    }
+  }
+
+  return {
+    type: "runningOrder",
+    runningOrder: winner.runningOrder,
+    label: `Earlier running order (${winner.runningOrder})`
+  };
 }
 
 function compareRunningOrder(a, b) {

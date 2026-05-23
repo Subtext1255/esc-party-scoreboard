@@ -522,9 +522,9 @@ h2 {
 
 .scoreboard {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--score-columns, 2), minmax(0, 1fr));
   grid-auto-flow: column;
-  grid-template-rows: repeat(13, minmax(0, 1fr));
+  grid-template-rows: repeat(var(--score-rows, 13), minmax(0, 1fr));
   gap: calc(5px * var(--score-row-scale)) calc(8px * var(--score-row-scale));
   flex: 1;
   min-height: 0;
@@ -696,6 +696,23 @@ h2 {
 
 .spotlight .flag-fallback {
   font-size: calc(0.76rem * var(--stage-scale));
+}
+
+.spotlight-award-summary .flag-wrap {
+  top: -0.03em;
+  margin-right: calc(3px * var(--stage-scale));
+  width: calc(20px * var(--stage-scale));
+  height: calc(14px * var(--stage-scale));
+}
+
+.spotlight-award-summary .flag-icon,
+.spotlight-award-summary .flag-fallback {
+  width: calc(20px * var(--stage-scale));
+  height: calc(14px * var(--stage-scale));
+}
+
+.spotlight-award-summary .flag-fallback {
+  font-size: calc(0.48rem * var(--stage-scale));
 }
 
 .entry-meta {
@@ -1700,8 +1717,8 @@ textarea:focus {
 
   body.is-presentation .scoreboard {
     grid-auto-flow: column;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(13, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--score-columns, 2), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--score-rows, 13), minmax(0, 1fr));
     gap: 3px 6px;
     overflow: hidden;
   }

@@ -160,6 +160,7 @@ function updateState(nextState) {
 function renderScoreboard() {
   const previousPositions = measureScoreRows();
   const tieBreakLabels = getTieBreakLabels(state.scoreboard);
+  applyScoreboardLayout(state.scoreboard.length);
 
   els.scoreboard.innerHTML = state.scoreboard
     .map((entry, index) => {
@@ -182,6 +183,24 @@ function renderScoreboard() {
     .join("");
 
   animateScoreRows(previousPositions);
+}
+
+function applyScoreboardLayout(entryCount) {
+  const columns = getScoreboardColumnCount(entryCount);
+  const rows = Math.max(1, Math.ceil(entryCount / columns));
+  els.scoreboard.style.setProperty("--score-columns", columns);
+  els.scoreboard.style.setProperty("--score-rows", rows);
+  els.scoreboard.dataset.entryCount = entryCount;
+  els.scoreboard.dataset.scoreColumns = columns;
+  els.scoreboard.dataset.scoreRows = rows;
+}
+
+function getScoreboardColumnCount(entryCount) {
+  if (entryCount <= 1) return 1;
+  if (entryCount <= 20) return 2;
+  if (entryCount <= 30) return 2;
+  if (entryCount <= 48) return 3;
+  return 4;
 }
 
 function renderRankingForm() {
@@ -385,13 +404,12 @@ function renderSpotlight(animation = "") {
     : "Now revealing";
 
   if (state.winnerReveal) {
-    const winners = state.winnerReveal.entries || [];
-    const winner = winners[0];
-    const isTie = winners.length > 1;
+    const winner = state.winnerReveal.entry || state.winnerReveal.entries?.[0];
+    const tieBreak = state.winnerReveal.tieBreak;
     els.spotlight.innerHTML = `
-      <span class="spotlight-label">${isTie ? "Final result" : "Winner"}</span>
-      <strong>${isTie ? `Tie: ${winners.map((entry) => `${flagMarkup(entry)}${escapeHtml(entry.countryName || entry.country || entry.name)}`).join(" & ")}` : `${flagMarkup(winner)}${escapeHtml(winner?.countryName || winner?.country || winner?.name || "Winner")}`}</strong>
-      <span>${isTie ? `${winners.length} entries finish` : escapeHtml(entryDetail(winner))} with ${state.winnerReveal.total} points.</span>
+      <span class="spotlight-label">Winner</span>
+      <strong>${flagMarkup(winner)}${escapeHtml(winner?.countryName || winner?.country || winner?.name || "Winner")}</strong>
+      <span>${escapeHtml(entryDetail(winner))} with ${state.winnerReveal.total} points${tieBreak ? ` after tie-break: ${escapeHtml(tieBreak.label)}.` : "."}</span>
     `;
     renderStageInvite();
     animateSpotlight(animation);
@@ -434,10 +452,15 @@ function renderSpotlight(animation = "") {
     const entry = state.entries.find((item) => item.id === highestAward.entryId);
 
     if (lastAwards.length > 1) {
+      const lowerAwardEntries = lastAwards
+        .slice(0, -1)
+        .reverse()
+        .map((award) => state.entries.find((item) => item.id === award.entryId))
+        .filter(Boolean);
       els.spotlight.innerHTML = `
         <span class="spotlight-label">${juryProgressLabel}</span>
-        <strong>${escapeHtml(reveal.juror)} awards 1-${highestAward.points} points to ${lastAwards.length} entries</strong>
-        <span>${reveal.finished ? "All points from this jury are on the board." : "Next award is ready."}</span>
+        <strong>${escapeHtml(reveal.juror)} awards ${highestAward.points} points to ${flagMarkup(entry)}${escapeHtml(entry?.countryName || entry?.country || "Unknown entry")}</strong>
+        <span class="spotlight-award-summary">${escapeHtml(reveal.juror)} awards points to ${countryListMarkup(lowerAwardEntries)}.</span>
         ${reveal.finished ? `<span class="spotlight-status">Jury complete.</span>` : ""}
       `;
       renderStageInvite();
@@ -473,7 +496,8 @@ function getSpotlightSnapshot(nextState) {
     return {
       type: "winner",
       shownAt: nextState.winnerReveal.shownAt || "",
-      entryIds: (nextState.winnerReveal.entries || []).map((entry) => entry.id).join(",")
+      entryIds: (nextState.winnerReveal.entries || []).map((entry) => entry.id).join(","),
+      tieBreak: nextState.winnerReveal.tieBreak?.label || ""
     };
   }
 
@@ -1575,6 +1599,15 @@ function entryLabel(entry) {
 function entryDetail(entry) {
   if (!entry) return "";
   return [entry.song && `"${entry.song}"`, entry.artist].filter(Boolean).join(" / ");
+}
+
+function countryListMarkup(entries) {
+  const labels = entries
+    .map((entry) => `${flagMarkup(entry)}${escapeHtml(entry.countryName || entry.country || entry.name)}`)
+    .filter(Boolean);
+  if (labels.length <= 1) return labels[0] || "no other entries";
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
 }
 
 function entryDetailInlineMarkup(entry) {
