@@ -147,6 +147,92 @@ body.is-presentation .control-deck {
   background: var(--line);
 }
 
+.setup-page {
+  min-height: 100vh;
+  padding: 18px;
+}
+
+.setup-shell {
+  display: grid;
+  gap: 16px;
+  width: min(1280px, 100%);
+  margin: 0 auto;
+}
+
+.setup-header,
+.setup-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.setup-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+}
+
+.setup-header h1 {
+  white-space: normal;
+}
+
+.setup-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+  gap: 16px;
+}
+
+.setup-panel {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 18px;
+}
+
+.setup-panel h2 {
+  margin-bottom: 0;
+}
+
+.setup-panel textarea {
+  min-height: 380px;
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  resize: vertical;
+  white-space: pre;
+}
+
+.setup-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, auto);
+  gap: 8px;
+}
+
+.setup-tips article {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.setup-tips strong {
+  color: var(--gold);
+}
+
+.setup-tips span {
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 720;
+  line-height: 1.35;
+}
+
 .code-input {
   min-height: 56px;
   text-align: center;
@@ -1051,7 +1137,7 @@ h2 {
 
 .entry-editor-heading {
   display: grid;
-  grid-template-columns: 44px minmax(180px, 0.9fr) minmax(220px, 1fr) minmax(240px, 1.2fr) 96px;
+  grid-template-columns: 44px minmax(120px, 0.55fr) minmax(180px, 0.9fr) minmax(220px, 1fr) minmax(240px, 1.2fr) 96px;
   gap: 10px;
   padding: 0 10px 8px;
   color: var(--muted);
@@ -1061,7 +1147,7 @@ h2 {
 }
 
 .entry-editor-large .entry-edit-row {
-  grid-template-columns: 44px minmax(180px, 0.9fr) minmax(220px, 1fr) minmax(240px, 1.2fr) 96px;
+  grid-template-columns: 44px minmax(120px, 0.55fr) minmax(180px, 0.9fr) minmax(220px, 1fr) minmax(240px, 1.2fr) 96px;
   gap: 10px;
 }
 
@@ -1370,6 +1456,10 @@ textarea:focus {
   }
 
   .entry-page-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .setup-grid {
     grid-template-columns: 1fr;
   }
 

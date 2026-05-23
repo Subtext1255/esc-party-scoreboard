@@ -98,6 +98,19 @@ async function handleApi(req, res, url) {
     });
   }
 
+  if (req.method === "GET" && url.pathname === "/api/entry-lists/read") {
+    const listId = normalizeEntryListId(url.searchParams.get("entryListId"));
+    if (!listId) {
+      return sendJson(res, 400, { error: "Choose an entry list first." });
+    }
+    const entries = readEntryListFile(listId);
+    return sendJson(res, 200, {
+      entryListId: listId,
+      entries,
+      entriesText: formatEntries(entries)
+    });
+  }
+
   if (req.method === "POST" && url.pathname === "/api/parties") {
     const body = await readJson(req);
     if (!canCreateParty(req, url, body)) {
@@ -586,7 +599,7 @@ function getPublicState(state, hostToken = "", joinToken = "") {
         pointTier: recentAward ? getPointTier(recentAward.points) : null
       };
     })
-    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+    .sort(compareScoreboardEntries);
   const winnerReveal = getWinnerReveal(state, scoreboard);
 
   return {
@@ -902,7 +915,7 @@ function loadPartyState(partyId) {
     const state = {
       ...savedState,
       entries: Array.isArray(savedState.entries) && savedState.entries.length
-        ? savedState.entries.map(normalizeEntry)
+        ? savedState.entries.map((entry, index) => normalizeEntry(entry, index + 1))
         : readEntriesFile()
     };
     state.id = id;
@@ -1108,11 +1121,12 @@ function normalizeEntryListId(value) {
 function parseEntriesPayload(body) {
   if (Array.isArray(body.entries)) {
     return uniqueEntries(body.entries
-      .map((entry) => normalizeEntry({
+      .map((entry, index) => normalizeEntry({
+        runningOrder: entry?.runningOrder,
         country: entry?.country,
         artist: entry?.artist,
         song: entry?.song
-      }))
+      }, index + 1))
       .filter((entry) => entry.country));
   }
 
@@ -1125,13 +1139,18 @@ function parseEntries(text) {
     .map((line) => line.trim())
     .filter(Boolean);
 
-  if (lines[0]?.toLowerCase().startsWith("country\tartist\tsong")) {
+  const header = lines[0]?.toLowerCase();
+  const hasRunningOrderColumn = header?.startsWith("running order\tcountry\tartist\tsong");
+  if (hasRunningOrderColumn || header?.startsWith("country\tartist\tsong")) {
     lines.shift();
   }
 
-  const entries = lines.map((line) => {
-    const [country = "", artist = "", song = ""] = line.split("\t").map((part) => part.trim());
-    return normalizeEntry({ country, artist, song });
+  const entries = lines.map((line, index) => {
+    const parts = line.split("\t").map((part) => part.trim());
+    const [runningOrder, country, artist, song] = hasRunningOrderColumn
+      ? [parts[0], parts[1], parts[2], parts[3]]
+      : [index + 1, parts[0], parts[1], parts[2]];
+    return normalizeEntry({ runningOrder, country, artist, song }, index + 1);
   }).filter((entry) => entry.country);
 
   return uniqueEntries(entries);
@@ -1147,14 +1166,27 @@ function uniqueEntries(entries) {
 }
 
 function formatEntries(entries) {
-  const lines = ["Country\tArtist\tSong"];
-  for (const entry of entries) {
-    lines.push([entry.country, entry.artist, entry.song].map((value) => String(value || "").trim()).join("\t"));
-  }
+  const lines = ["Running Order\tCountry\tArtist\tSong"];
+  entries.forEach((entry, index) => {
+    lines.push([entry.runningOrder || index + 1, entry.country, entry.artist, entry.song].map((value) => String(value || "").trim()).join("\t"));
+  });
   return `${lines.join("\n")}\n`;
 }
 
-function normalizeEntry(entry) {
+function compareScoreboardEntries(a, b) {
+  return b.total - a.total
+    || compareRunningOrder(a, b)
+    || a.name.localeCompare(b.name);
+}
+
+function compareRunningOrder(a, b) {
+  const aOrder = Number.isFinite(a.runningOrder) ? a.runningOrder : Number.MAX_SAFE_INTEGER;
+  const bOrder = Number.isFinite(b.runningOrder) ? b.runningOrder : Number.MAX_SAFE_INTEGER;
+  return aOrder - bOrder;
+}
+
+function normalizeEntry(entry, fallbackRunningOrder = null) {
+  const runningOrder = normalizeRunningOrder(entry.runningOrder, fallbackRunningOrder);
   const country = String(entry.country || entry.name || "").trim();
   const artist = String(entry.artist || "").trim();
   const song = String(entry.song || "").trim();
@@ -1164,6 +1196,7 @@ function normalizeEntry(entry) {
 
   return {
     id: slug(country),
+    runningOrder,
     country,
     countryName,
     flagCode: flag.flagCode,
@@ -1173,13 +1206,20 @@ function normalizeEntry(entry) {
   };
 }
 
+function normalizeRunningOrder(value, fallback = null) {
+  const number = Number(value);
+  if (Number.isInteger(number) && number > 0) return number;
+  const fallbackNumber = Number(fallback);
+  if (Number.isInteger(fallbackNumber) && fallbackNumber > 0) return fallbackNumber;
+  return null;
+}
+
 function parseFlagPrefix(country) {
   const chars = [...country];
   const first = chars[0]?.codePointAt(0);
   const second = chars[1]?.codePointAt(0);
   const regionalA = 0x1f1e6;
   const regionalZ = 0x1f1ff;
-
   if (first >= regionalA && first <= regionalZ && second >= regionalA && second <= regionalZ) {
     const flagCode = String.fromCharCode(65 + first - regionalA, 65 + second - regionalA);
     return {

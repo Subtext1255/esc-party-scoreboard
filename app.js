@@ -1,5 +1,6 @@
 const state = {
   entries: [],
+  entryLists: [],
   submissions: [],
   scoreboard: [],
   currentReveal: null,
@@ -71,11 +72,20 @@ const els = {
   landingAdminSecretGroup: document.querySelector("#landing-admin-secret-group"),
   landingAdminSecret: document.querySelector("#landing-admin-secret"),
   landingCreateParty: document.querySelector("#landing-create-party"),
-  landingJoinParty: document.querySelector("#landing-join-party")
+  landingJoinParty: document.querySelector("#landing-join-party"),
+  setupPage: document.querySelector("#setup-page"),
+  setupClose: document.querySelector("#setup-close"),
+  setupEntryList: document.querySelector("#setup-entry-list"),
+  setupEntriesText: document.querySelector("#setup-entries-text"),
+  setupApplyEntries: document.querySelector("#setup-apply-entries"),
+  setupEntryEditorLink: document.querySelector("#setup-entry-editor-link"),
+  setupMessage: document.querySelector("#setup-message"),
+  leaveParty: document.querySelector("#leave-party")
 };
 
 let events;
 let hasRenderedSpotlight = false;
+let isSetupVisible = false;
 session.hostToken = session.partyId ? getStoredHostToken(session.partyId) : "";
 session.joinToken = session.partyId ? getStoredJoinToken(session.partyId) : "";
 loadActiveDeviceBallot();
@@ -138,6 +148,7 @@ function updateState(nextState) {
   Object.assign(state, nextState);
   hideLanding();
   renderPartySettings();
+  renderSetupScreen();
   const spotlightAnimation = hasRenderedSpotlight ? getSpotlightAnimation(previousSpotlight, getSpotlightSnapshot(state)) : "";
   renderScoreboard();
   renderRankingForm();
@@ -309,6 +320,31 @@ function renderPartySettings() {
       ? "Use this local-network link for guests on the same Wi-Fi or wired network."
       : "Share this link with guests for this party.";
   els.entryEditorLink.href = `/entries.html?party=${encodeURIComponent(partyId)}`;
+  if (els.setupEntryEditorLink) {
+    els.setupEntryEditorLink.href = `/entries.html?party=${encodeURIComponent(partyId)}`;
+  }
+}
+
+function renderSetupScreen() {
+  if (!els.setupPage) return;
+  els.setupPage.classList.toggle("is-hidden", !isSetupVisible);
+  document.querySelector(".app-shell")?.classList.toggle("is-hidden", isSetupVisible);
+  if (!isSetupVisible) return;
+
+  renderSetupEntryLists();
+  if (document.activeElement !== els.setupEntriesText && !els.setupEntriesText.value) {
+    els.setupEntriesText.value = state.entriesText || formatEntriesForTextarea(state.entries);
+  }
+}
+
+function renderSetupEntryLists() {
+  if (!els.setupEntryList) return;
+  const currentListId = state.entryListId || "";
+  els.setupEntryList.innerHTML = [
+    `<option value="">Custom current list</option>`,
+    ...state.entryLists.map((list) => `<option value="${escapeHtml(list.id)}">${escapeHtml(list.name)}${list.isDefault ? " (default)" : ""}</option>`)
+  ].join("");
+  els.setupEntryList.value = currentListId;
 }
 
 function stageShareMarkup() {
@@ -551,7 +587,7 @@ function bindActions() {
   });
   els.createParty.addEventListener("click", async () => {
     try {
-      await createParty();
+      await createParty(undefined, undefined, undefined, { showSetup: true });
     } catch (error) {
       renderLanding(error.message, { keepAdminSecret: error.code === "admin_secret_required" });
     }
@@ -570,7 +606,7 @@ function bindActions() {
         const password = els.landingCreatePassword?.value || "";
         const name = els.landingCreateName?.value || "Eurovision Party";
         const adminSecret = els.landingAdminSecret?.value || "";
-        await createParty(password, name, adminSecret);
+        await createParty(password, name, adminSecret, { showSetup: true });
       } catch (error) {
         renderLanding(error.message, { keepAdminSecret: error.code === "admin_secret_required" });
       }
@@ -615,6 +651,10 @@ function bindActions() {
     els.inviteLink.value = els.inviteLinkOptions.value;
     renderInviteQr(els.inviteLinkOptions.value);
   });
+  els.leaveParty?.addEventListener("click", () => leaveParty());
+  els.setupClose?.addEventListener("click", () => hideSetupScreen());
+  els.setupEntryList?.addEventListener("change", () => loadSetupEntryList(els.setupEntryList.value));
+  els.setupApplyEntries?.addEventListener("click", () => applySetupEntries());
 
   els.resetVotes.addEventListener("click", async () => {
     if (!confirm("Reset every submission and applied vote?")) return;
@@ -655,7 +695,7 @@ async function claimHost() {
   }
 }
 
-async function createParty(joinPassword = "", name = els.partyName.value || "Eurovision Party", adminSecret = "") {
+async function createParty(joinPassword = "", name = els.partyName.value || "Eurovision Party", adminSecret = "", options = {}) {
   const body = { name };
   if (joinPassword) body.joinPassword = joinPassword;
   if (adminSecret) body.adminSecret = adminSecret;
@@ -666,7 +706,7 @@ async function createParty(joinPassword = "", name = els.partyName.value || "Eur
     skipParty: true
   });
 
-  switchParty(data.party.id, data.hostToken, data.joinToken, data.party);
+  switchParty(data.party.id, data.hostToken, data.joinToken, data.party, { showSetup: Boolean(options.showSetup) });
 }
 
 async function savePartyName() {
@@ -745,7 +785,7 @@ async function joinParty(code, password = "") {
   }
 }
 
-function switchParty(partyId, hostToken = getStoredHostToken(partyId), joinToken = getStoredJoinToken(partyId), knownState = null) {
+function switchParty(partyId, hostToken = getStoredHostToken(partyId), joinToken = getStoredJoinToken(partyId), knownState = null, options = {}) {
   session.partyId = normalizePartyId(partyId);
   session.hostToken = hostToken || "";
   session.joinToken = joinToken || "";
@@ -758,10 +798,92 @@ function switchParty(partyId, hostToken = getStoredHostToken(partyId), joinToken
   window.history.replaceState({}, "", url);
   if (knownState) {
     updateState(knownState);
+    if (options.showSetup) showSetupScreen();
     connectEvents();
     loadNetworkInfo();
   } else {
     loadInitialState();
+  }
+}
+
+function leaveParty() {
+  if (events) {
+    events.close();
+    events = null;
+  }
+  isSetupVisible = false;
+  session.partyId = null;
+  session.hostToken = "";
+  session.joinToken = "";
+  session.ballotToken = "";
+  session.activeSubmissionId = "";
+  session.networkUrls = [];
+  applyPresentationMode(false);
+  localStorage.removeItem("partyId");
+  const url = new URL(window.location.href);
+  url.searchParams.delete("party");
+  window.history.replaceState({}, "", url);
+  renderLanding();
+}
+
+async function showSetupScreen() {
+  applyPresentationMode(false);
+  isSetupVisible = true;
+  els.setupEntriesText.value = state.entriesText || formatEntriesForTextarea(state.entries);
+  setMessage(els.setupMessage, "");
+  await loadEntryLists();
+  renderSetupScreen();
+}
+
+function hideSetupScreen() {
+  isSetupVisible = false;
+  renderSetupScreen();
+}
+
+async function loadEntryLists() {
+  try {
+    const data = await api("/api/entry-lists");
+    state.entryLists = data.lists || [];
+    renderSetupEntryLists();
+  } catch (error) {
+    setMessage(els.setupMessage, error.message, true);
+  }
+}
+
+async function loadSetupEntryList(entryListId) {
+  setMessage(els.setupMessage, "");
+  if (!entryListId) {
+    els.setupEntriesText.value = state.entriesText || formatEntriesForTextarea(state.entries);
+    return;
+  }
+
+  try {
+    const data = await api("/api/entry-lists/read", { query: { entryListId } });
+    els.setupEntriesText.value = data.entriesText || "";
+  } catch (error) {
+    setMessage(els.setupMessage, error.message, true);
+  }
+}
+
+async function applySetupEntries() {
+  setMessage(els.setupMessage, "");
+  try {
+    const data = await api("/api/entries", {
+      method: "POST",
+      body: {
+        entriesText: els.setupEntriesText.value,
+        saveList: false
+      }
+    });
+    state.entryLists = data.entryLists || state.entryLists;
+    updateState(data.party || data);
+    setMessage(els.setupMessage, "Entries applied. Voting has been reset for this party.");
+  } catch (error) {
+    if (error.code === "host_token_stale") {
+      connectEvents();
+      loadInitialState();
+    }
+    setMessage(els.setupMessage, error.message, true);
   }
 }
 
@@ -828,7 +950,7 @@ function disableDuplicateOptions() {
 }
 
 async function api(url, options = {}) {
-  const response = await fetch(apiUrl(url, {}, options.skipParty), {
+  const response = await fetch(apiUrl(url, options.query || {}, options.skipParty), {
     method: options.method || "GET",
     headers: {
       ...(options.body ? { "Content-Type": "application/json" } : {}),
@@ -1299,6 +1421,7 @@ function clearRankingForm(options = {}) {
 
 function renderLanding(errorMessage = "", options = {}) {
   if (els.landingPage) els.landingPage.classList.remove("is-hidden");
+  if (els.setupPage) els.setupPage.classList.add("is-hidden");
   document.querySelector(".app-shell")?.classList.add("is-hidden");
   if (!options.keepJoinPassword) {
     els.landingJoinPasswordGroup?.classList.add("is-hidden");
@@ -1330,6 +1453,14 @@ function setLandingMessage(message, isError = false) {
   if (!els.landingError) return;
   els.landingError.textContent = message;
   els.landingError.classList.toggle("is-error", isError);
+}
+
+function formatEntriesForTextarea(entries) {
+  const lines = ["Running Order\tCountry\tArtist\tSong"];
+  entries.forEach((entry, index) => {
+    lines.push([entry.runningOrder || index + 1, entry.country, entry.artist, entry.song].map((value) => String(value || "").trim()).join("\t"));
+  });
+  return `${lines.join("\n")}\n`;
 }
 
 function loadActiveDeviceBallot() {

@@ -123,9 +123,14 @@ function renderRows() {
 }
 
 function entryRowMarkup(entry = {}, index = 0) {
+  const runningOrder = Number.isInteger(Number(entry.runningOrder)) && Number(entry.runningOrder) > 0 ? Number(entry.runningOrder) : index + 1;
   return `
     <article class="entry-edit-row" data-entry-row>
       <div class="entry-edit-rank">${index + 1}</div>
+      <label>
+        Running Order
+        <input data-entry-field="runningOrder" type="number" min="1" step="1" value="${runningOrder}" placeholder="${index + 1}">
+      </label>
       <label>
         Country
         <input data-entry-field="country" value="${escapeHtml(entry.country || "")}" placeholder="Country">
@@ -185,7 +190,8 @@ function addEntryRow(entry = {}) {
 
 function collectEntryRows() {
   return [...els.entriesRows.querySelectorAll("[data-entry-row]")]
-    .map((row) => ({
+    .map((row, index) => ({
+      runningOrder: Number(row.querySelector('[data-entry-field="runningOrder"]')?.value) || index + 1,
       country: row.querySelector('[data-entry-field="country"]')?.value.trim() || "",
       artist: row.querySelector('[data-entry-field="artist"]')?.value.trim() || "",
       song: row.querySelector('[data-entry-field="song"]')?.value.trim() || ""
@@ -194,8 +200,11 @@ function collectEntryRows() {
 }
 
 function renumberEntryRows() {
-  els.entriesRows.querySelectorAll(".entry-edit-rank").forEach((rank, index) => {
+  els.entriesRows.querySelectorAll("[data-entry-row]").forEach((row, index) => {
+    const rank = row.querySelector(".entry-edit-rank");
+    const runningOrder = row.querySelector('[data-entry-field="runningOrder"]');
     rank.textContent = index + 1;
+    if (runningOrder && !runningOrder.value) runningOrder.value = index + 1;
   });
 }
 
